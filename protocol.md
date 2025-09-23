@@ -151,7 +151,6 @@ Server replies:
 ```
 Type: 0x00 ACK
 Length: N
-Type: 0x40 ACK
 Value:
   [NodeList TLV]
     [NodeEntry TLV]
