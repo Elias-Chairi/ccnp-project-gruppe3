@@ -178,7 +178,7 @@ Length: N
       SelectorType = 0x02 NODE_LIST
       Value = [0x07, 0x0C, 0x13]
   [ActuatorSelector TLV]
-      SelectorType = 0x14 ACTUATOR_TYPE
+      SelectorType = 0x13 ACTUATOR_TYPE
       Value = "FAN"
   [ActuatorState TLV]
       State = 0x01 (ON)
