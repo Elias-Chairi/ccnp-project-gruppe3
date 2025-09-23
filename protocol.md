@@ -141,7 +141,7 @@ Value: "192.168.0.10:6000"
 2. Registration (TCP)
 
 ```
-Type: 0x10 REGISTER_CONTROL
+Type: 0x11 REGISTER_CONTROL
 Length: 0
 Value: (empty)
 ```
