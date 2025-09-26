@@ -1,26 +1,54 @@
 package entity
 
-import "errors"
+import "log"
 
-type Node struct {
-	ID        string
-	Actuators []Actuator[any]
-	Sensors   []Sensor[any]
+type node struct {
+	id        int
+	actuators []*actuator[any]
+	sensors   []*sensor[any]
 }
 
-// NewNode creates a new Node instance with initialized slices for Actuators and Sensors.
-func NewNode() *Node {
-	return &Node{
-		Actuators: []Actuator[any]{},
-		Sensors:   []Sensor[any]{},
+type nodeOption func(*node)
+
+// WithSensors sets the sensors for the Node and assigns the Node as their observer.
+func WithSensors(sensors ...*sensor[any]) nodeOption {
+	return func(n *node) {
+		for _, sensor := range sensors {
+			sensor.SetObserver(n)
+			n.sensors = append(n.sensors, sensor)
+		}
 	}
 }
 
-// SetID sets the ID of the Node. It returns an error if the provided ID is empty.
-func (n *Node) SetID(id string) error {
-	if id == "" {
-		return errors.New("ID cannot be empty")
+// WithActuators sets the actuators for the Node.
+func WithActuators(a ...*actuator[any]) nodeOption {
+	return func(n *node) { n.actuators = a }
+}
+
+// NewNode creates a new Node instance with the given options.
+func NewNode(opts ...nodeOption) *node {
+	node := &node{}
+	for _, opt := range opts {
+		opt(node)
 	}
-	n.ID = id
-	return nil
+	return node
+}
+
+// SetID sets the ID of the Node.
+func (n *node) SetID(id int) {
+	n.id = id
+}
+
+// GetID returns the ID of the Node.
+func (n *node) GetID() int {
+	return n.id
+}
+
+func (n *node) GetActuators() []*actuator[any] {
+	return n.actuators
+}
+
+// UpdateSensorValue updates the value of a Sensor and notifies observers.
+func (n *node) UpdateSensorValue(sensor *sensor[any]) {
+	log.Println("Sensor updated:", sensor.GetType(), sensor.GetValue())
 }
