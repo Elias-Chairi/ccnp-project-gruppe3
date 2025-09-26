@@ -13,8 +13,8 @@ type Sensor[T any] struct {
 }
 
 // NewSensor creates a new Sensor instance with the given parameters and an observer.
-func NewSensor[T any](id int, sensorType string, unit string, initialValue T) *Sensor[any] {
-	return &Sensor[any]{
+func NewSensor[T any](id int, sensorType string, unit string, initialValue T) *Sensor[T] {
+	return &Sensor[T]{
 		id:         id,
 		sensorType: sensorType,
 		unit:       unit,

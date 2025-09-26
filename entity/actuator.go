@@ -7,8 +7,8 @@ type Actuator[T any] struct {
 	state        T
 }
 
-func NewActuator[T any](id int, actuatorType string, unit string, initialState T) *Actuator[any] {
-	return &Actuator[any]{
+func NewActuator[T any](id int, actuatorType string, unit string, initialState T) *Actuator[T] {
+	return &Actuator[T]{
 		id:           id,
 		actuatorType: actuatorType,
 		unit:         unit,
