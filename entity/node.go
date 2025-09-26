@@ -4,14 +4,14 @@ import "log"
 
 type node struct {
 	id        int
-	actuators []actuator[any]
-	sensors   []sensor[any]
+	actuators []*actuator[any]
+	sensors   []*sensor[any]
 }
 
 type nodeOption func(*node)
 
 // WithSensors sets the sensors for the Node and assigns the Node as their observer.
-func WithSensors(sensors ...sensor[any]) nodeOption {
+func WithSensors(sensors ...*sensor[any]) nodeOption {
 	return func(n *node) {
 		for _, sensor := range sensors {
 			sensor.SetObserver(n)
@@ -21,7 +21,7 @@ func WithSensors(sensors ...sensor[any]) nodeOption {
 }
 
 // WithActuators sets the actuators for the Node.
-func WithActuators(a ...actuator[any]) nodeOption {
+func WithActuators(a ...*actuator[any]) nodeOption {
 	return func(n *node) { n.actuators = a }
 }
 
@@ -44,7 +44,7 @@ func (n *node) GetID() int {
 	return n.id
 }
 
-func (n *node) GetActuators() []actuator[any] {
+func (n *node) GetActuators() []*actuator[any] {
 	return n.actuators
 }
 

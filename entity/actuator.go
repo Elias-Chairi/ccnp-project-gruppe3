@@ -22,7 +22,7 @@ func (a *actuator[T]) GetID() int {
 	return a.id
 }
 
-// SetID sets the ID of the Actuator.
+// GetType returns the type of the Actuator.
 func (a *actuator[T]) GetType() string {
 	return a.actuatorType
 }
