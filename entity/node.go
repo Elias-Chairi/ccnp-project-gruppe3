@@ -2,37 +2,53 @@ package entity
 
 import "log"
 
-type Node struct {
+type node struct {
 	id        int
-	actuators []Actuator[any]
-	sensors   []Sensor[any]
+	actuators []actuator[any]
+	sensors   []sensor[any]
 }
 
-// NewNode creates a new Node instance with initialized slices for Actuators and Sensors.
-func NewNode(actuators []Actuator[any]) *Node {
-	return &Node{
-		actuators: actuators,
-		sensors:   []Sensor[any]{},
+type nodeOption func(*node)
+
+// WithSensors sets the sensors for the Node and assigns the Node as their observer.
+func WithSensors(sensors ...sensor[any]) nodeOption {
+	return func(n *node) {
+		for _, sensor := range sensors {
+			sensor.SetObserver(n)
+			n.sensors = append(n.sensors, sensor)
+		}
 	}
 }
 
+// WithActuators sets the actuators for the Node.
+func WithActuators(a ...actuator[any]) nodeOption {
+	return func(n *node) { n.actuators = a }
+}
+
+// NewNode creates a new Node instance with the given options.
+func NewNode(opts ...nodeOption) *node {
+	node := &node{}
+	for _, opt := range opts {
+		opt(node)
+	}
+	return node
+}
+
 // SetID sets the ID of the Node.
-func (n *Node) SetID(id int) {
+func (n *node) SetID(id int) {
 	n.id = id
 }
 
 // GetID returns the ID of the Node.
-func (n *Node) GetID() int {
+func (n *node) GetID() int {
 	return n.id
 }
 
-// AddSensor adds a new Sensor to the Node's sensors slice.
-func (n *Node) AddSensor(sensor Sensor[any]) {
-	sensor.SetObserver(n)
-	n.sensors = append(n.sensors, sensor)
+func (n *node) GetActuators() []actuator[any] {
+	return n.actuators
 }
 
 // UpdateSensorValue updates the value of a Sensor and notifies observers.
-func (n *Node) UpdateSensorValue(sensor *Sensor[any]) {
+func (n *node) UpdateSensorValue(sensor *sensor[any]) {
 	log.Println("Sensor updated:", sensor.GetType(), sensor.GetValue())
 }

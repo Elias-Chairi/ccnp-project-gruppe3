@@ -1,10 +1,10 @@
 package entity
 
 type SensorObserver[T any] interface {
-	UpdateSensorValue(sensor *Sensor[T])
+	UpdateSensorValue(sensor *sensor[T])
 }
 
-type Sensor[T any] struct {
+type sensor[T any] struct {
 	id         int
 	sensorType string
 	unit       string
@@ -13,8 +13,8 @@ type Sensor[T any] struct {
 }
 
 // NewSensor creates a new Sensor instance with the given parameters and an observer.
-func NewSensor[T any](id int, sensorType string, unit string, initialValue T) *Sensor[T] {
-	return &Sensor[T]{
+func NewSensor[T any](id int, sensorType string, unit string, initialValue T) *sensor[T] {
+	return &sensor[T]{
 		id:         id,
 		sensorType: sensorType,
 		unit:       unit,
@@ -23,27 +23,27 @@ func NewSensor[T any](id int, sensorType string, unit string, initialValue T) *S
 }
 
 // GetID returns the ID of the Sensor.
-func (s *Sensor[T]) GetID() int {
+func (s *sensor[T]) GetID() int {
 	return s.id
 }
 
 // SetID sets the ID of the Sensor.
-func (s *Sensor[T]) SetID(id int) {
+func (s *sensor[T]) SetID(id int) {
 	s.id = id
 }
 
 // GetType returns the type of the Sensor.
-func (s *Sensor[T]) GetType() string {
+func (s *sensor[T]) GetType() string {
 	return s.sensorType
 }
 
 // GetUnit returns the unit of the Sensor.
-func (s *Sensor[T]) GetUnit() string {
+func (s *sensor[T]) GetUnit() string {
 	return s.unit
 }
 
 // SetValue sets the value of the Sensor and notifies the observer.
-func (s *Sensor[T]) SetValue(newValue T) {
+func (s *sensor[T]) SetValue(newValue T) {
 	s.value = newValue
 	if s.observer != nil {
 		s.observer.UpdateSensorValue(s)
@@ -51,11 +51,11 @@ func (s *Sensor[T]) SetValue(newValue T) {
 }
 
 // GetValue returns the current value of the Sensor.
-func (s *Sensor[T]) GetValue() T {
+func (s *sensor[T]) GetValue() T {
 	return s.value
 }
 
 // SetObserver sets the observer for the Sensor.
-func (s *Sensor[T]) SetObserver(observer SensorObserver[T]) {
+func (s *sensor[T]) SetObserver(observer SensorObserver[T]) {
 	s.observer = observer
 }
