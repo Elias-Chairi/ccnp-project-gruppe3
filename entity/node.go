@@ -1,5 +1,7 @@
 package entity
 
+import "log"
+
 type Node struct {
 	id        int
 	actuators []Actuator[any]
@@ -32,5 +34,5 @@ func (n *Node) AddSensor(sensor Sensor[any]) {
 
 // UpdateSensorValue updates the value of a Sensor and notifies observers.
 func (n *Node) UpdateSensorValue(sensor *Sensor[any]) {
-	println("Sensor updated:", sensor.GetType(), sensor.GetValue())
+	log.Println("Sensor updated:", sensor.GetType(), sensor.GetValue())
 }
