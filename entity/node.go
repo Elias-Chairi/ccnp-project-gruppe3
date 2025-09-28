@@ -20,6 +20,11 @@ func WithSensors(sensors ...*sensor[any]) nodeOption {
 	}
 }
 
+// GetSensors returns the sensors of the Node.
+func (n *node) GetSensors() []*sensor[any] {
+	return n.sensors
+}
+
 // WithActuators sets the actuators for the Node.
 func WithActuators(a ...*actuator[any]) nodeOption {
 	return func(n *node) { n.actuators = a }
