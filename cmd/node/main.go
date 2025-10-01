@@ -1,6 +1,10 @@
 package main
 
-import "github.com/Elias-Chairi/ccnp-project-gruppe3/entity"
+import (
+	"log"
+
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/entity"
+)
 
 func main() {
 	node := entity.NewNode(entity.WithActuators(
@@ -10,4 +14,5 @@ func main() {
 		entity.NewSensor[any](0, "TEMPERATURE", "°C", 22.5),
 		entity.NewSensor[any](1, "HUMIDITY", "%", 60),
 	))
+	log.Println(node.GetID())
 }
