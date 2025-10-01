@@ -17,8 +17,7 @@ type view struct {
 
 func New() *view {
 	v := &view{}
-	controller := controller.New(v)
-	v.controller = controller
+	v.controller = controller.New(v)
 	v.setupUI()
 	return v
 }
