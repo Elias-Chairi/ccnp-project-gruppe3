@@ -43,80 +43,85 @@ The actors are:
 
 All messages use TLV encoding; TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
 
+### Code space layout
+
+All 1-byte type codes are partitioned into non-overlapping, nibble-aligned ranges for clarity and future growth:
+
+- MessageType: 0x40-0x4F (16 IDs)
+- NodeSelector: 0x50-0x5F (16 IDs)
+- ActuatorSelector: 0x60-0x6F (16 IDs)
+- SensorField: 0x70-0x7F (16 IDs)
+- ActuatorField: 0x80-0x8F (16 IDs)
+- DataType: 0x90-0x9F (16 IDs)
+- AckErrorCode: 0xA0-0xAF (16 IDs)
+
 ### Header TLV:
 
 | Type (hex)                | Direction                   | Expected value                                  | Response             |
 | ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
-| `0x1` – DISCOVERY         | Node/Control → Server (UDP) |                                                 | ACK[TCP Address]     |
-| `0x10` – REGISTER_NODE    | Node → Server (TCP)         | [NODE_LIST][ACTUATOR_LIST]                      | ACK[SINGLE_NODE]/ERR |
-| `0x11` – REGISTER_CONTROL | Control → Server (TCP)      |                                                 | ACK[NODE_LIST]       |
-| `0x20` – SENSOR_UPDATE    | Node → Server (TCP)         | [SensorEntry]                                   |                      |
-| `0x20` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][SensorEntry]                      |                      |
-| `0x30` – COMMAND          | Control → Server (TCP)      | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR              |
-| `0x30` – COMMAND          | Server → Node (TCP)         | [ActuatorSelector][ActuatorState]               | ACK/ERR              |
-| `0x40` – ACK/ERROR        | Node/Server → Sender (TCP)  | [ACK/ERROR]                                     |                      |
-
-### Actuator State Codes:
-
-| Code (hex) | Meaning                                        |
-| ---------- | ---------------------------------------------- |
-| `0x01`     | ON                                             |
-| `0x02`     | OFF                                            |
-| `0x03`     | Value (inner [data type TLV](#data-type-tlvs)) |
+| `0x41` – DISCOVERY        | Node/Control → Server (UDP) |                                                 | ACK[TCP Address]     |
+| `0x42` – REGISTER_NODE    | Node → Server (TCP)         | [List of Actuator and Sensor entries]           | ACK[SINGLE_NODE]/ERR |
+| `0x43` – REGISTER_CONTROL | Control → Server (TCP)      |                                                 | ACK[NODE_LIST]       |
+| `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                   |                      |
+| `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                      |                      |
+| `0x45` – COMMAND          | Control → Server (TCP)      | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR              |
+| `0x45` – COMMAND          | Server → Node (TCP)         | [ActuatorSelector][ActuatorState]               | ACK/ERR              |
+| `0x46` – ACK/ERROR        | Node/Server → Sender (TCP)  | [ACK/ERROR]                                     |                      |
 
 ### Node Selectors codes
 
 |    Hex | Selector        | Example Value      | Meaning                 |
 | -----: | --------------- | ------------------ | ----------------------- |
-| `0x01` | **SINGLE_NODE** | `0x07`             | Target Node 7 only.     |
-| `0x02` | **NODE_LIST**   | `[0x07,0x0C,0x13]` | Specific list of nodes. |
-| `0x03` | **ALL_NODES**   | none               | Broadcast to all nodes. |
+| `0x51` | **SINGLE_NODE** | `0x07`             | Target Node 7 only.     |
+| `0x52` | **NODE_LIST**   | `[0x07,0x0C,0x13]` | Specific list of nodes. |
+| `0x53` | **ALL_NODES**   | none               | Broadcast to all nodes. |
 
 ### Actuator Selectors codes
 
 |    Hex | Selector            | Example Value      | Meaning                          |
 | -----: | ------------------- | ------------------ | -------------------------------- |
-| `0x11` | **SINGLE_ACTUATOR** | `0x03`             | Actuator ID 3 only.              |
-| `0x12` | **ACTUATOR_LIST**   | `[0x01,0x04,0x05]` | Specific list of actuators.      |
-| `0x13` | **ACTUATOR_TYPE**   | `FAN` (string)     | All actuators of type FAN.       |
-| `0x14` | **ALL_ACTUATORS**   | none               | All actuators on target node(s). |
+| `0x61` | **SINGLE_ACTUATOR** | `0x03`             | Actuator ID 3 only.              |
+| `0x62` | **ACTUATOR_LIST**   | `[0x01,0x04,0x05]` | Specific list of actuators.      |
+| `0x63` | **ACTUATOR_TYPE**   | `FAN` (string)     | All actuators of type FAN.       |
+| `0x64` | **ALL_ACTUATORS**   | none               | All actuators on target node(s). |
 
-### Sensor Entry codes
+### Sensor Entry codes; Field code `0x70`: Sensor Entry
 
-| Field Code | Data Type    | Meaning                                            |
-| ---------: | ------------ | -------------------------------------------------- |
-|     `0x21` | 1 byte       | **Local ID** within node.                          |
-|     `0x22` | UTF-8 string | **Type** (e.g., TEMPERATURE, HUMIDITY, LIGHT).     |
-|     `0x23` | UTF-8 string | **Unit** (°C, %, lux).                             |
-|     `0x24` |              | **Value** (inner [data type TLV](#data-type-tlvs)) |
+| Field Code | Data Type    | Meaning                                             |
+| ---------: | ------------ | --------------------------------------------------- |
+|     `0x71` | 1 byte       | **Local ID** within node.                           |
+|     `0x72` | UTF-8 string | **Type** (e.g., TEMPERATURE, HUMIDITY, LIGHT).      |
+|     `0x73` | UTF-8 string | **Unit** (°C, %, lux).                              |
+|     `0x74` |              | **Value** (inner [data type TLV](#data-type-codes)) |
 
-### Actuator Entry codes
+### Actuator Entry codes; Field code `0x80`: Actuator Entry
 
-| Field Code | Data Type    | Meaning                                     |
-| ---------: | ------------ | ------------------------------------------- |
-|     `0x31` | 1 byte       | **Local ID** within node.                   |
-|     `0x32` | UTF-8 string | **Type** (e.g., FAN, HEATER, WINDOW).       |
-|     `0x33` | UTF-8 string | **Unit** (°C, %, rpm).                      |
-|     `0x34` | 1 byte       | **[Actuator State](#actuator-state-codes)** |
+| Field Code | Data Type    | Meaning                                             |
+| ---------: | ------------ | --------------------------------------------------- |
+|     `0x81` | 1 byte       | **Local ID** within node.                           |
+|     `0x82` | UTF-8 string | **Type** (e.g., FAN, HEATER, WINDOW).               |
+|     `0x83` | UTF-8 string | **Unit** (°C, %, rpm).                              |
+|     `0x84` |              | **State** (inner [data type TLV](#data-type-codes)) |
 
 ### Data type codes
 
-| Type (hex) | Meaning |
-| ---------- | ------- |
-| `0x01`     | Integer |
-| `0x02`     | Float   |
-| `0x03`     | String  |
+| Type (hex) | Meaning | Value Encoding                     |
+| ---------- | ------- | ---------------------------------- |
+| `0x91`     | Integer | Variable length, big-endian        |
+| `0x92`     | Float   | Variable length, big-endian        |
+| `0x93`     | String  | Variable length, UTF-8 encoded     |
+| `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true) |
 
 ## ACK/ERR codes
 
 | Code (hex) | Meaning                 |
 | ---------- | ----------------------- |
-| `0x00`     | ACK: success            |
-| `0x01`     | ERR: Unknown NodeID     |
-| `0x02`     | ERR: Unknown SensorID   |
-| `0x03`     | ERR: Unknown ActuatorID |
-| `0x04`     | ERR: Invalid Action     |
-| `0x05`     | ERR: Invalid value      |
+| `0xA0`     | ACK: success            |
+| `0xA1`     | ERR: Unknown NodeID     |
+| `0xA2`     | ERR: Unknown SensorID   |
+| `0xA3`     | ERR: Unknown ActuatorID |
+| `0xA4`     | ERR: Invalid Action     |
+| `0xA5`     | ERR: Invalid value      |
 
 ## Example
 
@@ -125,7 +130,7 @@ All messages use TLV encoding; TLV = Type (1 byte) + Length (2 byte) + Value (va
 1. Discovery (UDP)
 
 ```
-Type: 0x01 DISCOVERY
+Type: 0x41 DISCOVERY
 Length: 0
 Value: (empty)
 ```
@@ -133,7 +138,7 @@ Value: (empty)
 Server replies:
 
 ```
-Type: 0x00 ACK
+Type: 0x46 ACK/ERROR
 Length: N
 Value: "192.168.0.10:6000"
 ```
@@ -141,7 +146,7 @@ Value: "192.168.0.10:6000"
 2. Registration (TCP)
 
 ```
-Type: 0x11 REGISTER_CONTROL
+Type: 0x43 REGISTER_CONTROL
 Length: 0
 Value: (empty)
 ```
@@ -149,7 +154,7 @@ Value: (empty)
 Server replies:
 
 ```
-Type: 0x00 ACK
+Type: 0x46 ACK/ERROR
 Length: N
 Value:
   [NodeList TLV]
@@ -172,13 +177,13 @@ Value:
 “Turn ON all fans at Nodes 7, 12, 19”
 
 ```
-Type: 0x30 COMMAND
+Type: 0x45 COMMAND
 Length: N
   [NodeSelector TLV]
-      SelectorType = 0x02 NODE_LIST
+    SelectorType = 0x52 NODE_LIST
       Value = [0x07, 0x0C, 0x13]
   [ActuatorSelector TLV]
-      SelectorType = 0x13 ACTUATOR_TYPE
+    SelectorType = 0x63 ACTUATOR_TYPE
       Value = "FAN"
   [ActuatorState TLV]
       State = 0x01 (ON)
