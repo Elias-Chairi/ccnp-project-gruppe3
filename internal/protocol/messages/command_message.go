@@ -3,8 +3,8 @@ package messages
 import (
 	"fmt"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
@@ -55,7 +55,7 @@ func (m *commandMessage) Encode() ([]byte, error) {
 	tlvs = append(tlvs, actuatorSelectorTLV)
 
 	// Encode actuator state
-	actuatorStateValueTLV, err := protocol.EncodeAny(m.ActuatorState)
+	actuatorStateValueTLV, err := encoding.EncodeAny(m.ActuatorState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode Actuator State: %w", err)
 	}
@@ -120,7 +120,7 @@ func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
 			actSel = &as
 
 		case inner.Type() == uint8(constants.ACTUATOR_STATE):
-			state, err := protocol.DecodeAny(inner)
+			state, err := encoding.DecodeAny(inner)
 			if err != nil {
 				return commandMessage{}, fmt.Errorf("failed to decode Actuator State: %w", err)
 			}

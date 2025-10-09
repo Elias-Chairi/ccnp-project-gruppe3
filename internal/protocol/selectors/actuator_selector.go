@@ -3,8 +3,8 @@ package selectors
 import (
 	"fmt"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
@@ -53,12 +53,12 @@ func (a *ActuatorSelector) Encode() (tlv.TLV, error) {
 		if len(a.ActuatorIDs) != 1 {
 			return nil, fmt.Errorf("SINGLE_ACTUATOR selector must have exactly one actuator ID")
 		}
-		return tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), protocol.EncodeByte(a.ActuatorIDs[0]))
+		return tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), encoding.EncodeByte(a.ActuatorIDs[0]))
 	case constants.ACTUATOR_LIST:
 		if len(a.ActuatorIDs) == 0 {
 			return nil, fmt.Errorf("ACTUATOR_LIST selector must have at least one actuator ID")
 		}
-		return tlv.NewTLV(uint8(constants.ACTUATOR_LIST), protocol.EncodeByteList(a.ActuatorIDs))
+		return tlv.NewTLV(uint8(constants.ACTUATOR_LIST), encoding.EncodeByteList(a.ActuatorIDs))
 	case constants.ACTUATOR_TYPE:
 		if a.TypeName == "" {
 			return nil, fmt.Errorf("ACTUATOR_TYPE selector must have a type name")
@@ -88,7 +88,7 @@ func DecodeActuatorSelector(tlv tlv.TLV) (ActuatorSelector, error) {
 		}
 		return ActuatorSelector{
 			Type:        constants.ACTUATOR_LIST,
-			ActuatorIDs: protocol.DecodeByteList(tlv.Value()),
+			ActuatorIDs: encoding.DecodeByteList(tlv.Value()),
 		}, nil
 	case constants.ACTUATOR_TYPE:
 		if tlv.Length() == 0 {

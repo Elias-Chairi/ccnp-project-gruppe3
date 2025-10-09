@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
@@ -32,7 +32,7 @@ func (m *registerNodeMessage) Encode() ([]byte, error) {
 	// Encode sensor list
 	var tlvs []tlv.TLV
 	for _, sensor := range m.Sensors {
-		tlv, err := protocol.EncodeSensorEntry(sensor)
+		tlv, err := encoding.EncodeSensorEntry(sensor)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode sensor entry: %w", err)
 		}
@@ -41,7 +41,7 @@ func (m *registerNodeMessage) Encode() ([]byte, error) {
 
 	// Encode actuator list
 	for _, actuator := range m.Actuators {
-		tlv, err := protocol.EncodeActuatorEntry(actuator)
+		tlv, err := encoding.EncodeActuatorEntry(actuator)
 		if err != nil {
 			return nil, err
 		}
@@ -77,13 +77,13 @@ func DecodeRegisterNodeMessage(t tlv.TLV) (*registerNodeMessage, error) {
 	for _, innerTLV := range tlvs {
 		switch innerTLV.Type() {
 		case constants.SENSOR_ENTRY:
-			sensor, err := protocol.DecodeSensorEntry(innerTLV)
+			sensor, err := encoding.DecodeSensorEntry(innerTLV)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor entry: %w", err)
 			}
 			msg.Sensors = append(msg.Sensors, *sensor)
 		case constants.ACTUATOR_ENTRY:
-			actuator, err := protocol.DecodeActuatorEntry(innerTLV)
+			actuator, err := encoding.DecodeActuatorEntry(innerTLV)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode actuator entry: %w", err)
 			}

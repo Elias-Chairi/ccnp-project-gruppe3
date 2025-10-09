@@ -3,8 +3,8 @@ package selectors
 import (
 	"fmt"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
@@ -45,12 +45,12 @@ func (n *NodeSelector) Encode() (tlv.TLV, error) {
 		if len(n.NodeIDs) != 1 {
 			return nil, fmt.Errorf("SINGLE_NODE selector must have exactly one node ID")
 		}
-		return tlv.NewTLV(uint8(constants.SINGLE_NODE), protocol.EncodeByte(n.NodeIDs[0]))
+		return tlv.NewTLV(uint8(constants.SINGLE_NODE), encoding.EncodeByte(n.NodeIDs[0]))
 	case constants.NODE_LIST:
 		if len(n.NodeIDs) == 0 {
 			return nil, fmt.Errorf("NODE_LIST selector must have at least one node ID")
 		}
-		return tlv.NewTLV(uint8(constants.NODE_LIST), protocol.EncodeByteList(n.NodeIDs))
+		return tlv.NewTLV(uint8(constants.NODE_LIST), encoding.EncodeByteList(n.NodeIDs))
 	case constants.ALL_NODES:
 		return tlv.NewTLV(uint8(constants.ALL_NODES), []byte{})
 	default:
@@ -75,7 +75,7 @@ func DecodeNodeSelector(tlv tlv.TLV) (NodeSelector, error) {
 		}
 		return NodeSelector{
 			Type:    constants.NODE_LIST,
-			NodeIDs: protocol.DecodeByteList(tlv.Value()),
+			NodeIDs: encoding.DecodeByteList(tlv.Value()),
 		}, nil
 	case constants.ALL_NODES:
 		if tlv.Length() != 0 {

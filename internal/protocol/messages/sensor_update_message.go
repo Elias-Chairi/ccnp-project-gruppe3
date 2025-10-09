@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
@@ -45,7 +45,7 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	}
 
 	// Encode sensor entry
-	entryTLV, err := protocol.EncodeSensorEntry(m.Sensor)
+	entryTLV, err := encoding.EncodeSensorEntry(m.Sensor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode sensor entry: %w", err)
 	}
@@ -89,7 +89,7 @@ func DecodeSensorUpdateMessage(t tlv.TLV) (*sensorUpdateMessage, error) {
 			}
 			msg.NodeID = &tlv.Value()[0]
 		case constants.SENSOR_ENTRY:
-			sensor, err = protocol.DecodeSensorEntry(tlv)
+			sensor, err = encoding.DecodeSensorEntry(tlv)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor entry: %w", err)
 			}
