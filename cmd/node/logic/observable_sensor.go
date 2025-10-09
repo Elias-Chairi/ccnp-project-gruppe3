@@ -15,7 +15,7 @@ type observableSensor[T any] struct {
 	observer SensorObserver[T]
 }
 
-func NewObservableSensor[T any](sensor *entity.Sensor[T], observer SensorObserver[T]) (*observableSensor[T], error) {
+func newObservableSensor[T any](sensor *entity.Sensor[T], observer SensorObserver[T]) (*observableSensor[T], error) {
 	if sensor == nil {
 		return nil, fmt.Errorf("sensor cannot be nil")
 	}

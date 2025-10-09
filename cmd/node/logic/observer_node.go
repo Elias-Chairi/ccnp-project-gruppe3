@@ -14,10 +14,10 @@ type node struct {
 type nodeOption func(*node)
 
 // WithSensors sets the sensors for the Node and assigns the Node as their observer.
-func WithSensors(sensors ...entity.Sensor[any]) nodeOption {
+func WithSensors(sensors ...*entity.Sensor[any]) nodeOption {
 	return func(n *node) {
 		for _, sen := range sensors {
-			s, err := NewObservableSensor(&sen, n)
+			s, err := newObservableSensor(sen, n)
 			if err != nil {
 				log.Println("Error creating observable sensor:", err)
 				continue
