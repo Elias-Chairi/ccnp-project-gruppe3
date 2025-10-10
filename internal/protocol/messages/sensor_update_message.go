@@ -9,13 +9,19 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// sensorUpdateMessage represents a SENSOR_UPDATE message (Type 0x20)
+// sensorUpdateMessage represents a SENSOR_UPDATE message (Type SENSOR_UPDATE).
+//
+// Purpose: Transmit sensor readings.
+//   - Node → Server: Sensor entry without node ID
+//   - Server → Control: NodeID (0x51) + Sensor entry
+//
+// TLV: [Type:SENSOR_UPDATE][Length:N][Value: (Optional NodeID TLV) + SensorEntry TLV]
 type sensorUpdateMessage struct {
 	NodeID *uint8 // Only present in server->control direction
 	Sensor entity.Sensor[any]
 }
 
-// NewSensorUpdateMessage creates a new SENSOR_UPDATE message without node ID (for control->server)
+// NewSensorUpdateMessage creates a new SENSOR_UPDATE message without node ID (node → server).
 func NewSensorUpdateMessage(sensor entity.Sensor[any]) *sensorUpdateMessage {
 	return &sensorUpdateMessage{
 		NodeID: nil,
@@ -23,7 +29,7 @@ func NewSensorUpdateMessage(sensor entity.Sensor[any]) *sensorUpdateMessage {
 	}
 }
 
-// NewSensorUpdateMessageWithNode creates a new SENSOR_UPDATE message with node ID (for server->control)
+// NewSensorUpdateMessageWithNode creates a new SENSOR_UPDATE message with node ID (server → control).
 func NewSensorUpdateMessageWithNode(nodeID uint8, sensor entity.Sensor[any]) *sensorUpdateMessage {
 	return &sensorUpdateMessage{
 		NodeID: &nodeID,
@@ -31,7 +37,7 @@ func NewSensorUpdateMessageWithNode(nodeID uint8, sensor entity.Sensor[any]) *se
 	}
 }
 
-// Encode encodes the SENSOR_UPDATE message to bytes
+// Encode encodes the SENSOR_UPDATE message to bytes.
 func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	var tlvs []tlv.TLV
 
@@ -60,12 +66,13 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	return mainTLV.Encode(), nil
 }
 
-// GetType returns the message type
+// Type returns the message type.
 func (m *sensorUpdateMessage) Type() constants.MessageType {
 	return constants.SENSOR_UPDATE
 }
 
-// DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV
+// DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV.
+// Validates type (SENSOR_UPDATE), optional NodeID TLV length (1), and presence of sensor entry.
 func DecodeSensorUpdateMessage(t tlv.TLV) (*sensorUpdateMessage, error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")

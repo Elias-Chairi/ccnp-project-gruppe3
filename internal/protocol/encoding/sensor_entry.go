@@ -8,7 +8,7 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// Encode encodes the sensor entry as nested TLVs
+// EncodeSensorEntry encodes a sensor into a SENSOR_ENTRY TLV with nested fields.
 func EncodeSensorEntry(s entity.Sensor[any]) (tlv.TLV, error) {
 	var tlvs []tlv.TLV
 
@@ -52,7 +52,7 @@ func EncodeSensorEntry(s entity.Sensor[any]) (tlv.TLV, error) {
 	return sensorEntryTLV, nil
 }
 
-// DecodeSensorEntry decodes a sensor entry from TLV data
+// DecodeSensorEntry decodes a SENSOR_ENTRY TLV into a Sensor and validates field lengths.
 func DecodeSensorEntry(t tlv.TLV) (*entity.Sensor[any], error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")

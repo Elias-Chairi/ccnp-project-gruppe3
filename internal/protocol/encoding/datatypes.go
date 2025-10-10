@@ -9,14 +9,14 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// EncodeInteger encodes an integer value as a TLV
+// EncodeInteger encodes a 32-bit integer into a TLV of type DATA_TYPE_INTEGER
 func EncodeInteger(value int32) (tlv.TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, uint32(value))
 	return tlv.NewTLV(uint8(constants.DATA_TYPE_INTEGER), data)
 }
 
-// DecodeInteger decodes an integer value from a TLV
+// DecodeInteger decodes a TLV of type DATA_TYPE_INTEGER into a 32-bit integer.
 func DecodeInteger(tlv tlv.TLV) (int32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
@@ -30,14 +30,14 @@ func DecodeInteger(tlv tlv.TLV) (int32, error) {
 	return int32(binary.BigEndian.Uint32(tlv.Value())), nil
 }
 
-// EncodeFloat encodes a float value as a TLV
+// EncodeFloat encodes a 32-bit float into a TLV of type DATA_TYPE_FLOAT
 func EncodeFloat(value float32) (tlv.TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, math.Float32bits(value))
 	return tlv.NewTLV(uint8(constants.DATA_TYPE_FLOAT), data)
 }
 
-// DecodeFloat decodes a float value from a TLV
+// DecodeFloat decodes a TLV of type DATA_TYPE_FLOAT into a 32-bit float.
 func DecodeFloat(tlv tlv.TLV) (float32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
@@ -52,12 +52,12 @@ func DecodeFloat(tlv tlv.TLV) (float32, error) {
 	return math.Float32frombits(bits), nil
 }
 
-// EncodeString encodes a string value as a TLV
+// EncodeString encodes a string into a TLV of type DATA_TYPE_STRING
 func EncodeString(value string) (tlv.TLV, error) {
 	return tlv.NewTLV(uint8(constants.DATA_TYPE_STRING), []byte(value))
 }
 
-// DecodeString decodes a string value from a TLV
+// DecodeString decodes a TLV of type DATA_TYPE_STRING into a string.
 func DecodeString(tlv tlv.TLV) (string, error) {
 	if tlv == nil {
 		return "", fmt.Errorf("TLV is nil")
@@ -68,6 +68,7 @@ func DecodeString(tlv tlv.TLV) (string, error) {
 	return string(tlv.Value()), nil
 }
 
+// EncodeBoolean encodes a boolean into a TLV of type DATA_TYPE_BOOLEAN
 func EncodeBoolean(value bool) (tlv.TLV, error) {
 	var byteValue byte
 	if value {
@@ -78,6 +79,7 @@ func EncodeBoolean(value bool) (tlv.TLV, error) {
 	return tlv.NewTLV(uint8(constants.DATA_TYPE_BOOLEAN), []byte{byteValue})
 }
 
+// DecodeBoolean decodes a TLV of type DATA_TYPE_BOOLEAN into a boolean (0x00=false, 0x01=true).
 func DecodeBoolean(tlv tlv.TLV) (bool, error) {
 	if tlv == nil {
 		return false, fmt.Errorf("TLV is nil")
@@ -88,12 +90,19 @@ func DecodeBoolean(tlv tlv.TLV) (bool, error) {
 	if tlv.Length() != 1 {
 		return false, fmt.Errorf("invalid boolean length: %d", tlv.Length())
 	}
-	if tlv.Value()[0] != 0x00 && tlv.Value()[0] != 0x01 {
+	switch tlv.Value()[0] {
+	case 0x00:
+		return false, nil
+	case 0x01:
+		return true, nil
+	default:
 		return false, fmt.Errorf("invalid boolean value: %d", tlv.Value()[0])
 	}
-	return tlv.Value()[0] == 0x01, nil
 }
 
+// EncodeAny encodes a supported Go value as the appropriate DataType TLV.
+// Supported: int32, float32, string, bool.
+// Returns an error for unsupported types.
 func EncodeAny(value any) (tlv.TLV, error) {
 	switch v := value.(type) {
 	case int32:
@@ -109,6 +118,8 @@ func EncodeAny(value any) (tlv.TLV, error) {
 	}
 }
 
+// DecodeAny decodes a DataType TLV into its Go value.
+// Returns an error for unsupported types.
 func DecodeAny(tlv tlv.TLV) (any, error) {
 	if tlv == nil {
 		return nil, fmt.Errorf("TLV is nil")
@@ -127,19 +138,19 @@ func DecodeAny(tlv tlv.TLV) (any, error) {
 	}
 }
 
-// EncodeByte encodes a single byte value
+// EncodeByte encodes a single byte value.
 func EncodeByte(value uint8) []byte {
 	return []byte{value}
 }
 
-// EncodeUint16 encodes a uint16 value in big-endian format
+// EncodeUint16 encodes a uint16 value in big-endian format.
 func EncodeUint16(value uint16) []byte {
 	data := make([]byte, 2)
 	binary.BigEndian.PutUint16(data, value)
 	return data
 }
 
-// DecodeUint16 decodes a uint16 value from bytes in big-endian format
+// DecodeUint16 decodes a uint16 value from bytes in big-endian format.
 func DecodeUint16(data []byte) (uint16, error) {
 	if data == nil {
 		return 0, fmt.Errorf("data is nil")
@@ -150,12 +161,12 @@ func DecodeUint16(data []byte) (uint16, error) {
 	return binary.BigEndian.Uint16(data), nil
 }
 
-// EncodeByteList encodes a list of bytes
+// EncodeByteList encodes a list of bytes.
 func EncodeByteList(values []uint8) []byte {
 	return values
 }
 
-// DecodeByteList decodes a list of bytes
+// DecodeByteList decodes a list of bytes.
 func DecodeByteList(data []byte) []uint8 {
 	return data
 }

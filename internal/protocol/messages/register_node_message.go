@@ -9,13 +9,16 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// registerNodeMessage represents a REGISTER_NODE message (Type 0x10)
+// registerNodeMessage represents a REGISTER_NODE message (Type REGISTER_NODE).
+//
+// Purpose: Node registers it self with the server over TCP, providing its sensors and actuators.
+// TLV: [Type:REGISTER_NODE][Length:N][Value: SensorEntry/ActuatorEntry TLVs]
 type registerNodeMessage struct {
 	Sensors   []entity.Sensor[any]
 	Actuators []entity.Actuator[any]
 }
 
-// NewRegisterNodeMessage creates a new REGISTER_NODE message
+// NewRegisterNodeMessage creates a new REGISTER_NODE message.
 func NewRegisterNodeMessage(sensors []entity.Sensor[any], actuators []entity.Actuator[any]) (*registerNodeMessage, error) {
 	if len(sensors) == 0 && len(actuators) == 0 {
 		return nil, fmt.Errorf("at least one of sensors or actuators must be provided")
@@ -26,7 +29,7 @@ func NewRegisterNodeMessage(sensors []entity.Sensor[any], actuators []entity.Act
 	}, nil
 }
 
-// Encode encodes the REGISTER_NODE message to bytes
+// Encode encodes the REGISTER_NODE message to bytes.
 func (m *registerNodeMessage) Encode() ([]byte, error) {
 
 	// Encode sensor list
@@ -56,12 +59,13 @@ func (m *registerNodeMessage) Encode() ([]byte, error) {
 	return mainTLV.Encode(), nil
 }
 
-// Type returns the message type
+// Type returns the message type.
 func (m *registerNodeMessage) Type() constants.MessageType {
 	return constants.REGISTER_NODE
 }
 
-// DecodeRegisterNodeMessage decodes a REGISTER_NODE message from TLV
+// DecodeRegisterNodeMessage decodes a REGISTER_NODE message from TLV.
+// Validates type (REGISTER_NODE) and decodes nested sensor/actuator entries.
 func DecodeRegisterNodeMessage(t tlv.TLV) (*registerNodeMessage, error) {
 	if t.Type() != uint8(constants.REGISTER_NODE) {
 		return nil, fmt.Errorf("expected REGISTER_NODE type, got %x", t.Type())

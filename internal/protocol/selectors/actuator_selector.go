@@ -2,20 +2,21 @@ package selectors
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// ActuatorSelector represents different ways to select actuators
+// ActuatorSelector represents different ways to select actuators.
 type ActuatorSelector struct {
 	Type        constants.ActuatorSelector // SINGLE_ACTUATOR, ACTUATOR_LIST, ACTUATOR_TYPE, or ALL_ACTUATORS
 	ActuatorIDs []uint8                    // For SINGLE_ACTUATOR and ACTUATOR_LIST
-	TypeName    string                     // For ACTUATOR_TYPE
+	TypeName    *string                    // For ACTUATOR_TYPE
 }
 
-// NewSingleActuatorSelector creates a selector for a single actuator
+// NewSingleActuatorSelector creates a selector for a single actuator.
 func NewSingleActuatorSelector(actuatorID uint8) *ActuatorSelector {
 	return &ActuatorSelector{
 		Type:        constants.SINGLE_ACTUATOR,
@@ -23,7 +24,7 @@ func NewSingleActuatorSelector(actuatorID uint8) *ActuatorSelector {
 	}
 }
 
-// NewActuatorListSelector creates a selector for multiple actuators
+// NewActuatorListSelector creates a selector for multiple actuators.
 func NewActuatorListSelector(actuatorIDs []uint8) *ActuatorSelector {
 	return &ActuatorSelector{
 		Type:        constants.ACTUATOR_LIST,
@@ -31,22 +32,23 @@ func NewActuatorListSelector(actuatorIDs []uint8) *ActuatorSelector {
 	}
 }
 
-// NewActuatorTypeSelector creates a selector for actuators by type
+// NewActuatorTypeSelector creates a selector for actuators by type.
 func NewActuatorTypeSelector(typeName string) *ActuatorSelector {
 	return &ActuatorSelector{
 		Type:     constants.ACTUATOR_TYPE,
-		TypeName: typeName,
+		TypeName: &typeName,
 	}
 }
 
-// NewAllActuatorsSelector creates a selector for all actuators
+// NewAllActuatorsSelector creates a selector for all actuators.
 func NewAllActuatorsSelector() *ActuatorSelector {
 	return &ActuatorSelector{
 		Type: constants.ALL_ACTUATORS,
 	}
 }
 
-// Encode encodes the actuator selector as TLV
+// Encode encodes the actuator selector as TLV.
+// Returns an error for invalid configurations (e.g., empty list, missing type name).
 func (a *ActuatorSelector) Encode() (tlv.TLV, error) {
 	switch a.Type {
 	case constants.SINGLE_ACTUATOR:
@@ -60,10 +62,10 @@ func (a *ActuatorSelector) Encode() (tlv.TLV, error) {
 		}
 		return tlv.NewTLV(uint8(constants.ACTUATOR_LIST), encoding.EncodeByteList(a.ActuatorIDs))
 	case constants.ACTUATOR_TYPE:
-		if a.TypeName == "" {
+		if a.TypeName == nil || strings.TrimSpace(*a.TypeName) == "" {
 			return nil, fmt.Errorf("ACTUATOR_TYPE selector must have a type name")
 		}
-		return tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte(a.TypeName))
+		return tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte(*a.TypeName))
 	case constants.ALL_ACTUATORS:
 		return tlv.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{})
 	default:
@@ -71,7 +73,7 @@ func (a *ActuatorSelector) Encode() (tlv.TLV, error) {
 	}
 }
 
-// DecodeActuatorSelector decodes an actuator selector from TLV
+// DecodeActuatorSelector decodes an actuator selector from TLV and validates length rules.
 func DecodeActuatorSelector(tlv tlv.TLV) (ActuatorSelector, error) {
 	switch constants.ActuatorSelector(tlv.Type()) {
 	case constants.SINGLE_ACTUATOR:
@@ -94,9 +96,10 @@ func DecodeActuatorSelector(tlv tlv.TLV) (ActuatorSelector, error) {
 		if tlv.Length() == 0 {
 			return ActuatorSelector{}, fmt.Errorf("ACTUATOR_TYPE selector must have a type name")
 		}
+		typeName := string(tlv.Value())
 		return ActuatorSelector{
 			Type:     constants.ACTUATOR_TYPE,
-			TypeName: string(tlv.Value()),
+			TypeName: &typeName,
 		}, nil
 	case constants.ALL_ACTUATORS:
 		if tlv.Length() != 0 {

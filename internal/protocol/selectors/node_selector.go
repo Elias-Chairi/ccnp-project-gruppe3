@@ -8,13 +8,13 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// NodeSelector represents different ways to select nodes
+// NodeSelector represents different ways to select nodes.
 type NodeSelector struct {
 	Type    constants.NodeSelector // SINGLE_NODE, NODE_LIST, or ALL_NODES
 	NodeIDs []uint8                // For SINGLE_NODE and NODE_LIST
 }
 
-// NewSingleNodeSelector creates a selector for a single node
+// NewSingleNodeSelector creates a selector for a single node.
 func NewSingleNodeSelector(nodeID uint8) *NodeSelector {
 	return &NodeSelector{
 		Type:    constants.SINGLE_NODE,
@@ -22,7 +22,7 @@ func NewSingleNodeSelector(nodeID uint8) *NodeSelector {
 	}
 }
 
-// NewNodeListSelector creates a selector for multiple nodes
+// NewNodeListSelector creates a selector for multiple nodes.
 func NewNodeListSelector(nodeIDs []uint8) *NodeSelector {
 	return &NodeSelector{
 		Type:    constants.NODE_LIST,
@@ -30,7 +30,7 @@ func NewNodeListSelector(nodeIDs []uint8) *NodeSelector {
 	}
 }
 
-// NewAllNodesSelector creates a selector for all nodes
+// NewAllNodesSelector creates a selector for all nodes.
 func NewAllNodesSelector() *NodeSelector {
 	return &NodeSelector{
 		Type:    constants.ALL_NODES,
@@ -38,7 +38,8 @@ func NewAllNodesSelector() *NodeSelector {
 	}
 }
 
-// Encode encodes the node selector as TLV
+// Encode encodes the node selector as TLV.
+// Returns an error for invalid configurations (e.g., missing IDs).
 func (n *NodeSelector) Encode() (tlv.TLV, error) {
 	switch n.Type {
 	case constants.SINGLE_NODE:
@@ -58,7 +59,7 @@ func (n *NodeSelector) Encode() (tlv.TLV, error) {
 	}
 }
 
-// DecodeNodeSelector decodes a node selector from TLV
+// DecodeNodeSelector decodes a node selector from TLV and validates length rules.
 func DecodeNodeSelector(tlv tlv.TLV) (NodeSelector, error) {
 	switch constants.NodeSelector(tlv.Type()) {
 	case constants.SINGLE_NODE:

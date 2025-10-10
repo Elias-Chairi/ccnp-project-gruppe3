@@ -9,14 +9,20 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// commandMessage represents a COMMAND message (Type 0x30)
+// commandMessage represents a COMMAND message (Type COMMAND).
+//
+// Purpose: Send actuator commands.
+//   - Control → Server: Node selector + actuator selector + state
+//   - Server → Node: Actuator selector + state (no node selector)
+//
+// TLV: [Type:COMMAND][Length:N][Value: (Optional NodeSelector TLV) + ActuatorSelector TLV + ActuatorState TLV]
 type commandMessage struct {
 	NodeSelector     *selectors.NodeSelector
 	ActuatorSelector selectors.ActuatorSelector
 	ActuatorState    any
 }
 
-// NewCommandMessage creates a new COMMAND message
+// NewCommandMessage creates a new COMMAND message without a node selector.
 func NewCommandMessage(actuatorSelector selectors.ActuatorSelector, actuatorState any) *commandMessage {
 	return &commandMessage{
 		NodeSelector:     nil,
@@ -25,7 +31,7 @@ func NewCommandMessage(actuatorSelector selectors.ActuatorSelector, actuatorStat
 	}
 }
 
-// NewCommandMessageWithNode creates a new COMMAND message with a Node Selector
+// NewCommandMessageWithNode creates a new COMMAND message with a node selector.
 func NewCommandMessageWithNode(nodeSelector selectors.NodeSelector, actuatorSelector selectors.ActuatorSelector, actuatorState any) *commandMessage {
 	return &commandMessage{
 		NodeSelector:     &nodeSelector,
@@ -34,7 +40,7 @@ func NewCommandMessageWithNode(nodeSelector selectors.NodeSelector, actuatorSele
 	}
 }
 
-// Encode encodes the COMMAND message to bytes
+// Encode encodes the COMMAND message to bytes.
 func (m *commandMessage) Encode() ([]byte, error) {
 	var tlvs []tlv.TLV
 
@@ -73,17 +79,13 @@ func (m *commandMessage) Encode() ([]byte, error) {
 	return mainTLV.Encode(), nil
 }
 
-// GetType returns the message type
+// Type returns the message type.
 func (m *commandMessage) Type() constants.MessageType {
 	return constants.COMMAND
 }
 
-// DecodeCommandMessage decodes a COMMAND message TLV into a commandMessage.
-//
-// Expected inner TLVs:
-//   - Node Selector TLV (required if expectNode is true)
-//   - Actuator Selector TLV (required)
-//   - Actuator State TLV (required)
+// DecodeCommandMessage decodes a COMMAND message (Type COMMAND) TLV into a commandMessage.
+// Validates presence of required inner TLVs depending on direction (expectNode).
 func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
 	if t == nil {
 		return commandMessage{}, fmt.Errorf("TLV is nil")

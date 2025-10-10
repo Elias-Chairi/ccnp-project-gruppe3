@@ -7,33 +7,37 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// ackErrorMessage represents an ACK or ERROR message (Type 0x40)
+// ackErrorMessage represents an ACK or ERROR message (ACK_ERROR).
+//
+// Purpose: Reply with ACK_SUCCESS (0xA0) or an error code (0xA1+). Optional data
+// may include additional info.
 type ackErrorMessage struct {
 	Code constants.AckErrorCode
-	Data string // Optional data (e.g., TCP address for ACK, error message for ERROR)
+	Data *string // Optional data
 }
 
-// NewAckMessage creates a new ACK message
-func NewAckMessage(data string) *ackErrorMessage {
+// NewAckMessage creates a new ACK message with code ACK_SUCCESS.
+func NewAckMessage(data *string) *ackErrorMessage {
 	return &ackErrorMessage{
 		Code: constants.ACK_SUCCESS,
 		Data: data,
 	}
 }
 
-// NewErrorMessage creates a new ERROR message
-func NewErrorMessage(errorCode constants.AckErrorCode, errorMessage string) *ackErrorMessage {
+// NewErrorMessage creates a new ERROR message with the specified error code.
+func NewErrorMessage(errorCode constants.AckErrorCode, errorMessage *string) *ackErrorMessage {
 	return &ackErrorMessage{
 		Code: errorCode,
 		Data: errorMessage,
 	}
 }
 
-// Encode encodes the ACK/ERROR message to bytes
+// Encode encodes the ACK/ERROR message to bytes.
+// TLV: [Type:ACK_ERROR][Length:N][Value: Code(1) + Data(N-1)]
 func (m *ackErrorMessage) Encode() ([]byte, error) {
-	value := make([]byte, 1+len(m.Data))
+	value := make([]byte, 1+len(*m.Data))
+	copy(value[1:], *m.Data)
 	value[0] = uint8(m.Code)
-	copy(value[1:], []byte(m.Data))
 
 	tlv, err := tlv.NewTLV(uint8(constants.ACK_ERROR), value)
 	if err != nil {
@@ -42,17 +46,18 @@ func (m *ackErrorMessage) Encode() ([]byte, error) {
 	return tlv.Encode(), nil
 }
 
-// Type returns the message type
+// Type returns the message type.
 func (m *ackErrorMessage) Type() constants.MessageType {
 	return constants.ACK_ERROR
 }
 
-// IsError returns true if this is an error message
+// IsError reports whether this is an error message (code != ACK_SUCCESS).
 func (m *ackErrorMessage) IsError() bool {
 	return m.Code != constants.ACK_SUCCESS
 }
 
-// DecodeAckErrorMessage decodes an ACK/ERROR message from TLV
+// DecodeAckErrorMessage decodes an ACK/ERROR message (Type ACK_ERROR) from TLV.
+// Validates type, minimum length (1), and code range.
 func DecodeAckErrorMessage(tlv tlv.TLV) (ackErrorMessage, error) {
 	if tlv == nil {
 		return ackErrorMessage{}, fmt.Errorf("TLV is nil")
@@ -68,9 +73,11 @@ func DecodeAckErrorMessage(tlv tlv.TLV) (ackErrorMessage, error) {
 	if !code.IsValid() {
 		return ackErrorMessage{}, fmt.Errorf("invalid ACK_ERROR code: %x", tlv.Value()[0])
 	}
-	data := ""
+
+	var data *string
 	if len(tlv.Value()) > 1 {
-		data = string(tlv.Value()[1:])
+		temp := string(tlv.Value()[1:])
+		data = &temp
 	}
 
 	return ackErrorMessage{

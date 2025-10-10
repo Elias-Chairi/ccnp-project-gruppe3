@@ -1,14 +1,16 @@
-package constants
-
-// Code space layout (all values are 1-byte and do not overlap):
+// Package constants defines all TLV type codes used by the protocol.
 //
-//  - MessageType       : 0x40-0x4F  (16 IDs)
-//  - NodeSelector      : 0x50-0x5F  (16 IDs)
-//  - ActuatorSelector  : 0x60-0x6F  (16 IDs)
-//  - SensorField       : 0x70-0x7F  (16 IDs)
-//  - ActuatorField     : 0x80-0x8F  (16 IDs)
-//  - DataType          : 0x90-0x9F  (16 IDs)
-//  - AckErrorCode      : 0xA0-0xAF  (16 IDs)
+// Code space layout (1-byte codes, non-overlapping 16-ID blocks):
+//   - MessageType      : 0x40-0x4F
+//   - NodeSelector     : 0x50-0x5F
+//   - ActuatorSelector : 0x60-0x6F
+//   - SensorField      : 0x70-0x7F
+//   - ActuatorField    : 0x80-0x8F
+//   - DataType         : 0x90-0x9F
+//   - AckErrorCode     : 0xA0-0xAF
+//
+// Some groups provide an IsValid method to validate codes at runtime.
+package constants
 
 // Message Types, Range: 0x40-0x4F
 type MessageType uint8

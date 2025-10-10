@@ -8,7 +8,7 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-// Encode encodes the actuator entry as nested TLVs
+// EncodeActuatorEntry encodes an actuator into an ACTUATOR_ENTRY TLV with nested fields.
 func EncodeActuatorEntry(a entity.Actuator[any]) (tlv.TLV, error) {
 	var tlvs []tlv.TLV
 
@@ -52,7 +52,7 @@ func EncodeActuatorEntry(a entity.Actuator[any]) (tlv.TLV, error) {
 	return tlv, nil
 }
 
-// DecodeActuatorEntry decodes an actuator entry from TLV data
+// DecodeActuatorEntry decodes an ACTUATOR_ENTRY TLV into an Actuator and validates field lengths.
 func DecodeActuatorEntry(t tlv.TLV) (*entity.Actuator[any], error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
