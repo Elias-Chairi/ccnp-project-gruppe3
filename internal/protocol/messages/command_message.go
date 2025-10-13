@@ -122,7 +122,11 @@ func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
 			actSel = &as
 
 		case inner.Type() == uint8(constants.ACTUATOR_STATE):
-			state, err := encoding.DecodeAny(inner)
+			innerTLV, err := tlv.DecodeTLV(inner.Value())
+			if err != nil {
+				return commandMessage{}, fmt.Errorf("failed to decode Actuator State inner TLV: %w", err)
+			}
+			state, err := encoding.DecodeAny(innerTLV)
 			if err != nil {
 				return commandMessage{}, fmt.Errorf("failed to decode Actuator State: %w", err)
 			}
