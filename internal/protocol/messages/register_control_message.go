@@ -35,6 +35,9 @@ func (m *registerControlMessage) Type() constants.MessageType {
 // DecodeRegisterControlMessage decodes a REGISTER_CONTROL message from TLV.
 // Validates type (REGISTER_CONTROL) and that length is zero.
 func DecodeRegisterControlMessage(tlv tlv.TLV) (registerControlMessage, error) {
+	if tlv == nil {
+		return registerControlMessage{}, fmt.Errorf("nil TLV provided")
+	}
 	if tlv.Type() != uint8(constants.REGISTER_CONTROL) {
 		return registerControlMessage{}, fmt.Errorf("expected REGISTER_CONTROL type, got %x", tlv.Type())
 	}
