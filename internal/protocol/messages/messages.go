@@ -11,3 +11,10 @@
 // All messages encode as a top-level TLV with the message type and a Value that
 // contains zero or more nested TLVs. Decoders validate the type and inner TLVs.
 package messages
+
+import "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+
+type Message interface {
+	Encode() ([]byte, error)
+	Type() constants.MessageType
+}
