@@ -93,8 +93,8 @@ func DecodeActuatorSelector(tlv tlv.TLV) (ActuatorSelector, error) {
 			ActuatorIDs: encoding.DecodeByteList(tlv.Value()),
 		}, nil
 	case constants.ACTUATOR_TYPE:
-		if tlv.Length() == 0 {
-			return ActuatorSelector{}, fmt.Errorf("ACTUATOR_TYPE selector must have a type name")
+		if tlv.Length() == 0 || strings.TrimSpace(string(tlv.Value())) == "" {
+			return ActuatorSelector{}, fmt.Errorf("ACTUATOR_TYPE selector must have a non-empty type name")
 		}
 		typeName := string(tlv.Value())
 		return ActuatorSelector{
