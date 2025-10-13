@@ -17,6 +17,7 @@ type ackErrorMessage struct {
 }
 
 // NewAckMessage creates a new ACK message with code ACK_SUCCESS.
+// Optional data may be nil or empty.
 func NewAckMessage(data *string) *ackErrorMessage {
 	return &ackErrorMessage{
 		Code: constants.ACK_SUCCESS,
@@ -25,11 +26,15 @@ func NewAckMessage(data *string) *ackErrorMessage {
 }
 
 // NewErrorMessage creates a new ERROR message with the specified error code.
-func NewErrorMessage(errorCode constants.AckErrorCode, errorMessage *string) *ackErrorMessage {
+// Optional errorMessage may be nil or empty.
+func NewErrorMessage(errorCode constants.AckErrorCode, errorMessage *string) (*ackErrorMessage, error) {
+	if !errorCode.IsValid() || errorCode == constants.ACK_SUCCESS {
+		return nil, fmt.Errorf("invalid error code: %v", errorCode)
+	}
 	return &ackErrorMessage{
 		Code: errorCode,
 		Data: errorMessage,
-	}
+	}, nil
 }
 
 // Encode encodes the ACK/ERROR message to bytes.

@@ -294,7 +294,7 @@ func TestActuatorSelectorEncodeInvalidState_UnknownType(t *testing.T) {
 }
 
 func TestActuatorSelectorDecodeInvalidState_UnknownType(t *testing.T) {
-	tlvData, _ := tlv.DecodeTLV([]byte{0xFF, 0x00, 0x01, 0x42})
+	tlvData, _ := tlv.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(t, err)
 }

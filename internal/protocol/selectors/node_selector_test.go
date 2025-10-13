@@ -173,7 +173,7 @@ func TestNodeSelectorEncodeInvalidState_UnknownType(t *testing.T) {
 
 }
 func TestNodeSelectorNodeSelector_UnknownType(t *testing.T) {
-	tlvData, _ := tlv.DecodeTLV([]byte{0xFF, 0x00, 0x01, 0x42})
+	tlvData, _ := tlv.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
 	_, err := selectors.DecodeNodeSelector(tlvData)
 	assert.Error(t, err)
 }

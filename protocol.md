@@ -113,6 +113,7 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 | `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true) |
 
 ## ACK/ERR codes
+Acknowledgment and error code should be the first byte of the Value field in an ACK/ERROR message. Extra data (e.g., error description) may follow. Extra data is interpreted as a UTF-8 string.
 
 | Code (hex) | Meaning                 |
 | ---------- | ----------------------- |
