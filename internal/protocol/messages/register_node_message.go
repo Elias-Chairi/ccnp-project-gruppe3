@@ -67,6 +67,9 @@ func (m *registerNodeMessage) Type() constants.MessageType {
 // DecodeRegisterNodeMessage decodes a REGISTER_NODE message from TLV.
 // Validates type (REGISTER_NODE) and decodes nested sensor/actuator entries.
 func DecodeRegisterNodeMessage(t tlv.TLV) (*registerNodeMessage, error) {
+	if t == nil {
+		return nil, fmt.Errorf("nil TLV provided")
+	}
 	if t.Type() != uint8(constants.REGISTER_NODE) {
 		return nil, fmt.Errorf("expected REGISTER_NODE type, got %x", t.Type())
 	}
@@ -95,6 +98,10 @@ func DecodeRegisterNodeMessage(t tlv.TLV) (*registerNodeMessage, error) {
 		default:
 			return nil, fmt.Errorf("unexpected TLV type %x in REGISTER_NODE message", innerTLV.Type())
 		}
+	}
+
+	if len(msg.Sensors) == 0 && len(msg.Actuators) == 0 {
+		return nil, fmt.Errorf("REGISTER_NODE message must contain at least one sensor or actuator")
 	}
 
 	return msg, nil

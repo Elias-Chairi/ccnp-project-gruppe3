@@ -68,22 +68,26 @@ func DecodeActuatorEntry(t tlv.TLV) (*entity.Actuator[any], error) {
 	}
 
 	a := &entity.Actuator[any]{}
-	for _, tlv := range tlvs {
-		switch constants.ActuatorField(tlv.Type()) {
+	for _, innerTLV := range tlvs {
+		switch constants.ActuatorField(innerTLV.Type()) {
 		case constants.ACTUATOR_ID:
-			if tlv.Length() != 1 {
+			if innerTLV.Length() != 1 {
 				return nil, fmt.Errorf("invalid actuator ID length")
 			}
-			a.ID = tlv.Value()[0]
+			a.ID = innerTLV.Value()[0]
 		case constants.ACTUATOR_TYPE_FIELD:
-			a.Type = string(tlv.Value())
+			a.Type = string(innerTLV.Value())
 		case constants.ACTUATOR_UNIT:
-			a.Unit = string(tlv.Value())
+			a.Unit = string(innerTLV.Value())
 		case constants.ACTUATOR_STATE:
-			if tlv.Length() != 1 {
-				return nil, fmt.Errorf("invalid actuator state length")
+			stateTLV, err := tlv.DecodeTLV(innerTLV.Value())
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode actuator state TLV: %w", err)
 			}
-			a.State = tlv.Value()[0]
+			a.State, err = DecodeAny(stateTLV)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode actuator state: %w", err)
+			}
 		}
 	}
 

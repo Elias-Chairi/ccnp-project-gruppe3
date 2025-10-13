@@ -68,19 +68,23 @@ func DecodeSensorEntry(t tlv.TLV) (*entity.Sensor[any], error) {
 	}
 
 	s := &entity.Sensor[any]{}
-	for _, t := range tlvs {
-		switch constants.SensorField(t.Type()) {
+	for _, innerTLV := range tlvs {
+		switch constants.SensorField(innerTLV.Type()) {
 		case constants.SENSOR_ID:
-			if t.Length() != 1 {
+			if innerTLV.Length() != 1 {
 				return nil, fmt.Errorf("invalid sensor ID length")
 			}
-			s.ID = t.Value()[0]
+			s.ID = innerTLV.Value()[0]
 		case constants.SENSOR_TYPE:
-			s.Type = string(t.Value())
+			s.Type = string(innerTLV.Value())
 		case constants.SENSOR_UNIT:
-			s.Unit = string(t.Value())
+			s.Unit = string(innerTLV.Value())
 		case constants.SENSOR_VALUE:
-			s.Value, err = DecodeAny(t)
+			valueTLV, err := tlv.DecodeTLV(innerTLV.Value())
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode sensor value TLV: %w", err)
+			}
+			s.Value, err = DecodeAny(valueTLV)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor value: %w", err)
 			}
