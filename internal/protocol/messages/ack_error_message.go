@@ -40,8 +40,13 @@ func NewErrorMessage(errorCode constants.AckErrorCode, errorMessage *string) (*a
 // Encode encodes the ACK/ERROR message to bytes.
 // TLV: [Type:ACK_ERROR][Length:N][Value: Code(1) + Data(N-1)]
 func (m *ackErrorMessage) Encode() ([]byte, error) {
-	value := make([]byte, 1+len(*m.Data))
-	copy(value[1:], *m.Data)
+	var value []byte
+	if m.Data != nil {
+		value = make([]byte, 1+len(*m.Data))
+		copy(value[1:], *m.Data)
+	} else {
+		value = make([]byte, 1)
+	}
 	value[0] = uint8(m.Code)
 
 	tlv, err := tlv.NewTLV(uint8(constants.ACK_ERROR), value)

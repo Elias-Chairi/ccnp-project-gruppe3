@@ -93,8 +93,6 @@ func TestDecode_ErrorMessage(t *testing.T) {
 }
 
 // -------------------------------------- Negative tests --------------------------------------
-
-// ---------------- ACK Message (Success) ----------------
 func TestNewAckMessage_EmptyData(t *testing.T) {
 	assert := assert.New(t)
 
@@ -111,7 +109,6 @@ func TestNewAckMessage_EmptyData(t *testing.T) {
 	assert.Nil(msg.Data)
 }
 
-// ---------------- Error Message ----------------
 func TestNewErrorMessage_EmptyData(t *testing.T) {
 	assert := assert.New(t)
 
@@ -130,6 +127,19 @@ func TestNewErrorMessage_EmptyData(t *testing.T) {
 	assert.Nil(msg.Data)
 }
 
+func TestEncode_AckMessage_NilData(t *testing.T) {
+	assert := assert.New(t)
+
+	msg := messages.NewAckMessage(nil)
+	encoded, err := msg.Encode()
+	assert.NoError(err)
+	assert.NotNil(encoded)
+	assert.Equal(uint8(constants.ACK_ERROR), encoded[0]) // Type
+	assert.Equal(uint16(1), binary.BigEndian.Uint16(encoded[1:3]))
+	assert.Equal(uint8(constants.ACK_SUCCESS), encoded[3]) // Code
+	assert.Equal(4, len(encoded))                          // Total length should be 4 bytes (Type + Length + Code)
+}
+
 func TestNewErrorMessage_InvalidCode(t *testing.T) {
 	// Invalid code (not defined)
 	_, err := messages.NewErrorMessage(0xFF, nil)
@@ -140,7 +150,6 @@ func TestNewErrorMessage_InvalidCode(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// ---------------- ack/error Message Decoding ----------------
 func TestDecodeInvalidState_AckErrorMessage(t *testing.T) {
 	assert := assert.New(t)
 
