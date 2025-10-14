@@ -6,6 +6,7 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 )
 
+// node is an extended version of entity.Node that includes observable sensors.
 type node struct {
 	entity.Node
 	Sensors []*observableSensor[any]

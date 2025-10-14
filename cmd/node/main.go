@@ -9,11 +9,11 @@ import (
 
 func main() {
 	node := logic.NewNode(logic.WithActuators(
-		&entity.Actuator[any]{0, "FAN", "RPM", 800},
-		&entity.Actuator[any]{1, "FAN", "RPM", 0},
+		&entity.Actuator[any]{ID: 0, Type: "FAN", Unit: "RPM", State: 800},
+		&entity.Actuator[any]{ID: 1, Type: "LIGHT", Unit: "on/off", State: true},
 	), logic.WithSensors(
-		&entity.Sensor[any]{0, "TEMPERATURE", "°C", 22.5},
-		&entity.Sensor[any]{1, "HUMIDITY", "%", 60},
+		&entity.Sensor[any]{ID: 0, Type: "TEMPERATURE", Unit: "°C", Value: 22.5},
+		&entity.Sensor[any]{ID: 1, Type: "HUMIDITY", Unit: "%", Value: 60},
 	))
 	log.Println(node.ID)
 }
