@@ -143,24 +143,6 @@ func EncodeByte(value uint8) []byte {
 	return []byte{value}
 }
 
-// EncodeUint16 encodes a uint16 value in big-endian format.
-func EncodeUint16(value uint16) []byte {
-	data := make([]byte, 2)
-	binary.BigEndian.PutUint16(data, value)
-	return data
-}
-
-// DecodeUint16 decodes a uint16 value from bytes in big-endian format.
-func DecodeUint16(data []byte) (uint16, error) {
-	if data == nil {
-		return 0, fmt.Errorf("data is nil")
-	}
-	if len(data) < 2 {
-		return 0, fmt.Errorf("insufficient data for uint16")
-	}
-	return binary.BigEndian.Uint16(data), nil
-}
-
 // EncodeByteList encodes a list of bytes.
 func EncodeByteList(values []uint8) []byte {
 	return values
