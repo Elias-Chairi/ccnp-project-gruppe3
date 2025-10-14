@@ -46,7 +46,7 @@ func (m *registerNodeMessage) Encode() ([]byte, error) {
 	for _, actuator := range m.Actuators {
 		tlv, err := encoding.EncodeActuatorEntry(actuator)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to encode actuator entry: %w", err)
 		}
 		tlvs = append(tlvs, tlv)
 	}
