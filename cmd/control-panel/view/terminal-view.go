@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/controller"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	controller controller.Controller
 	reader     *bufio.Reader
 }
 
@@ -21,7 +19,6 @@ func NewTerminal() *TerminalView {
 	v := &TerminalView{
 		reader: bufio.NewReader(os.Stdin),
 	}
-	v.controller = controller.New(v)
 	return v
 }
 
