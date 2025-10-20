@@ -1,10 +1,9 @@
 package main
 
 import (
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
+	"log"
 )
 
 func main() {
-	view := view.New()
-	view.Start()
+	log.Println("Hello, Control Panel!")
 }
