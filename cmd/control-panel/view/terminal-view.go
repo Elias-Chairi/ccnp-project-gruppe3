@@ -27,7 +27,7 @@ func NewTerminalWithData(nodes []*entity.Node) *TerminalView {
 
 func (v *TerminalView) Start() {
 	p := tea.NewProgram(initialModel(v.nodes))
-	if err := p.Start(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
@@ -57,6 +57,7 @@ type model struct {
     cursor   int
     selected map[int]struct{}
 	nodes []*entity.Node
+	selectedNode int
 }
 
 
@@ -67,6 +68,7 @@ func initialModel(nodes []*entity.Node) model {
         choices:  []string{"Manage Greenhouses", "Exit"},
         selected: make(map[int]struct{}),
         nodes:    nodes,
+		selectedNode: 0,
     }
 }
 
@@ -120,7 +122,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = "Returned to main menu."
 			case connectedMenu:
 				m.state = greenhouseList
-				m.choices = []string{"Greenhouse A", "Greenhouse B", "Greenhouse C"}
+				m.choices = []string{
+					"Greenhouse A", 
+					"Greenhouse B", 
+					"Greenhouse C", 
+				}
 				m.cursor = 0
 				m.message = "Returned to greenhouse list."
 			case sensorView, actuatorView:
@@ -128,7 +134,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.choices = []string{
 					"View Sensor Data",
 					"View/Change Actuator Status",
-					"Disconnect",
 				}
 				m.cursor = 0
 				m.message = "Returned to connected menu."
@@ -145,7 +150,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						"Greenhouse A ",
 						"Greenhouse B ",
 						"Greenhouse C ",
-						"Back to Main Menu",
 					}
 					m.cursor = 0
 
@@ -157,21 +161,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case greenhouseList:
 				switch m.cursor {
 				case 0, 1, 2:
-					// Pretend to connect to one of the greenhouses
+					
+					if m.cursor >= len(m.nodes) {
+						m.message = fmt.Sprintf("greenhouse %c not available.", 'A'+m.cursor)
+						return m, nil
+					}
+				
 					m.state = connectedMenu
+					m.selectedNode = m.cursor
 					m.choices = []string{
 						"View Sensor Data",
 						"View/Change Actuator Status",
-						"Disconnect",
 					}
 					m.cursor = 0
-					m.message = fmt.Sprintf("Connected to: %s (Demo Mode)", m.choices[m.cursor])
-
-				case 3:
-					m.state = mainMenu
-					m.choices = []string{"List Available Greenhouses", "Connect to a greenhouse", "Exit"}
-					m.cursor = 0
-					m.message = "Returned to main menu."
+					m.message = fmt.Sprintf("Connected to: Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
 				}
 
 			case connectedMenu:
@@ -183,22 +186,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = actuatorView
 					m.cursor = 0
 					m.message = "Displaying actuator status"
-				case 2:
-					m.state = mainMenu
-					m.choices = []string{
-						"List Available Greenhouses",
-						"Connect to a greenhouse",
-						"Exit",
-					}
-					m.cursor = 0
-					m.message = "Disconnected from Greenhouse. Returning to main menu..."
 				}
 
 			case actuatorView:
 				// Toggle ON/OFF for the selected actuator
-				if len(m.nodes) > 0 {
-					acts := m.nodes[0].Actuators
-					if len(acts) > 0 {
+				if len(m.nodes) > m.selectedNode {
+					acts := m.nodes[m.selectedNode].Actuators
+					if len(acts) > 0 && m.cursor < len(acts) {
 						act := acts[m.cursor]
 						if state, ok := act.State.(string); ok {
 							if state == "ON" {
@@ -208,8 +202,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							}
 							m.message = fmt.Sprintf("Toggled %s to %s", act.Type, act.State)
 						}
-					}
-				}	
+					}	
+				}	else {
+					m.message = fmt.Sprintf("Greenhouse %c does not exist.", 'A'+m.selectedNode)
+				}
 			}
 		}
 	}
@@ -225,13 +221,13 @@ func (m model) View() string {
 	switch m.state {
 
 	case mainMenu:
-		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
+		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message, m.nodes)
 
 	case greenhouseList:
-		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
+		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message, m.nodes)
 
 	case connectedMenu:
-		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
+		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message, m.nodes)
 
 	case sensorView:
     	return renderSensorView(m.nodes)
@@ -244,7 +240,7 @@ func (m model) View() string {
 	}
 }
 
-func renderMenu(title string, choices []string, cursor int, message string) string {
+func renderMenu(title string, choices []string, cursor int, message string, nodes []*entity.Node) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00aa55")).Render(title)
 	s += "\n-----------------------------\n"
 
@@ -252,6 +248,12 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 		prefix := " "
 		if i == cursor {
 			prefix = ">"
+		}
+
+		if title == "Available Greenhouses:" {
+			if  i >= len(nodes) {
+				choice = lipgloss.NewStyle().Faint(true).Render(choice + "(unavalable)")
+			}
 		}
 		s += fmt.Sprintf("%s %s\n", prefix, choice)
 	}
@@ -286,21 +288,45 @@ func renderActuatorView(m model) string {
     s := "  Actuator Status for Greenhouse A\n"
     s += "-----------------------------------\n"
 
-    if len(m.nodes) == 0 || len(m.nodes[0].Actuators) == 0 {
+	if m.selectedNode >= len(m.nodes) {
+		s += fmt.Sprintf("Greenhouse %c not found \n", 'A'+m.selectedNode)
+		return s
+	}
+
+    if len(m.nodes) == m.selectedNode || len(m.nodes[m.selectedNode].Actuators) == 0 {
         s += "No actuators found.\n"
         return s
     }
 
     highlight := lipgloss.NewStyle().
         Bold(true).
-        Foreground(lipgloss.Color("#e1c940ff"))
+        Foreground(lipgloss.Color("#e1ce40ff"))
 
-    for i, act := range m.nodes[0].Actuators {
+    for i, act := range m.nodes[m.selectedNode].Actuators {
+
+		var style lipgloss.Style
+
+		switch v := act.State.(type) {
+			case string:
+				switch v {
+				case "OFF":
+					style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
+				case "ON":
+					style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140ff"))
+				default:
+					style = lipgloss.NewStyle()	
+				}
+			default:
+				style = lipgloss.NewStyle()	
+			}
+
         line := fmt.Sprintf("[%-10s]  %-3v", act.Type, act.State)
+		coloredLine := style.Render(line)
+
         if i == m.cursor {
-            s += highlight.Render(line) + "\n"
+            s += highlight.Render(coloredLine) + "\n"
         } else {
-            s += line + "\n"
+            s += coloredLine + "\n"
         }
     }
 
