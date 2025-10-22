@@ -62,8 +62,8 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 | `0x41` – DISCOVERY        | Node/Control → Server (UDP) |                                                 | ACK[TCP Address]     |
 | `0x42` – REGISTER_NODE    | Node → Server (TCP)         | [List of Actuator and Sensor entries]           | ACK[SINGLE_NODE]/ERR |
 | `0x43` – REGISTER_CONTROL | Control → Server (TCP)      |                                                 | ACK[NODE_LIST]       |
-| `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                   |                      |
-| `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                      |                      |
+| `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                  |                      |
+| `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                     |                      |
 | `0x45` – COMMAND          | Control → Server (TCP)      | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR              |
 | `0x45` – COMMAND          | Server → Node (TCP)         | [ActuatorSelector][ActuatorState]               | ACK/ERR              |
 | `0x46` – ACK/ERROR        | Node/Server → Sender (TCP)  | [ACK/ERROR]                                     |                      |
@@ -113,6 +113,7 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 | `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true) |
 
 ## ACK/ERR codes
+
 Acknowledgment and error code should be the first byte of the Value field in an ACK/ERROR message. Extra data (e.g., error description) may follow. Extra data is interpreted as a UTF-8 string.
 
 | Code (hex) | Meaning                 |
@@ -123,6 +124,15 @@ Acknowledgment and error code should be the first byte of the Value field in an 
 | `0xA3`     | ERR: Unknown ActuatorID |
 | `0xA4`     | ERR: Invalid Action     |
 | `0xA5`     | ERR: Invalid value      |
+
+## Supported actuators
+
+| Type   | Unit                            | Description                                                  |
+| ------ | ------------------------------- | ------------------------------------------------------------ |
+| FAN    | 'RPM' -> integer, '' -> boolean | The rpm of the fan or on/off with a default speed            |
+| HEATER | '°C' -> float32, '' -> boolean  | Target temperature or on/off with a default temperature      |
+| WINDOW | '' -> float32 / boolean         | Openness percentage (0.0-1.0) or fully open/closed           |
+| LIGHT  | 'lx' -> float32, '' -> boolean  | Target brightness in lux or on/off with a default brightness |
 
 ## Example
 
