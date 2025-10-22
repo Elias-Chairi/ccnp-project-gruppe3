@@ -13,7 +13,7 @@ const (
 	DefaultHeaterTemp float32 = 30.0  // 30 °C when heater state is true
 
 	TemperatureChangePerFanStep    float32 = 0.50 // 50% convergence towards outdoor temperature per simulation step per fan when MaxWindowOpenness is reached
-	TemperatureChangePerHeaterStep float32 = 0.03 // 3% change towards heater temperature per simulation step
+	TemperatureChangePerHeaterStep float32 = 0.03 // 3% convergence rate towards heater temperature per simulation step
 	TemperatureChangePerWindowStep float32 = 0.05 // 5% change towards outdoor temperature per simulation step per fully open window
 
 	MaxWindowOpenness float32 = 6.0 // Maximum cumulative openness from all windows. Fan effects scale from 0 to TemperatureChangePerFanStep based on openness
