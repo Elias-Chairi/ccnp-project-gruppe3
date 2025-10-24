@@ -215,6 +215,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// This function is responsible for rendering the different views based on the current state.
 func (m model) View() string {
 	style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#0d4928ff"))
 
@@ -230,7 +231,7 @@ func (m model) View() string {
 		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message, m.nodes)
 
 	case sensorView:
-    	return renderSensorView(m.nodes)
+    	return renderSensorView(m.nodes, m.selectedNode)
 	case actuatorView:
     	return renderActuatorView(m)
 
@@ -240,6 +241,8 @@ func (m model) View() string {
 	}
 }
 
+
+// Renders a menu with the given title, choices, cursor position, and message.
 func renderMenu(title string, choices []string, cursor int, message string, nodes []*entity.Node) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00aa55")).Render(title)
 	s += "\n-----------------------------\n"
@@ -265,35 +268,45 @@ func renderMenu(title string, choices []string, cursor int, message string, node
 	return s
 }
 
+func renderSensorView(nodes []*entity.Node, selectedNode int) string {
+	if selectedNode >= len(nodes) {
+        return fmt.Sprintf("Greenhouse %c not found.\nPress q to quit or backspace to go back.", 'A'+selectedNode)
+    }
 
-func renderSensorView(nodes []*entity.Node) string {
-    s := " Sensor Data for Greenhouse A\n"
+    s := fmt.Sprintf(" Sensor Data for Greenhouse %c\n", 'A'+selectedNode)
     s += "--------------------------------\n"
 
-    for _, sensor := range nodes[0].Sensors {
-		switch v := sensor.Value.(type) {
-		case float64, float32:
-			s += fmt.Sprintf("[%-12s]  %.2f %s\n", sensor.Type, v, sensor.Unit)
-		case int, int32, int64:
-			s += fmt.Sprintf("[%-12s]  %d %s\n", sensor.Type, v, sensor.Unit)
-		default:
-			s += fmt.Sprintf("[%-12s]  %v %s\n", sensor.Type, v, sensor.Unit)
+	node := nodes[selectedNode]
+	if len(node.Sensors) == 0 {
+		s += "No sensors found.\n"
+	} else {
+		for _, sensor := range node.Sensors {
+			switch v := sensor.Value.(type) {
+				case float64, float32:
+					s += fmt.Sprintf("[%-12s]  %.2f %s\n", sensor.Type, v, sensor.Unit)
+				case int, int32, int64:
+					s += fmt.Sprintf("[%-12s]  %d %s\n", sensor.Type, v, sensor.Unit)
+				default:
+					s += fmt.Sprintf("[%-12s]  %v %s\n", sensor.Type, v, sensor.Unit)
+            }
 		}
 	}
-    s += "\nPress q to quit or backspace go back."
-    return s
+
+	s += "\nPress q to quit or backspace to go back.\n"
+
+	return s
 }
 
 func renderActuatorView(m model) string {
-    s := "  Actuator Status for Greenhouse A\n"
+    if m.selectedNode >= len(m.nodes) {
+        return fmt.Sprintf("Greenhouse %c not found.\n", 'A'+m.selectedNode)
+    }
+
+    s := fmt.Sprintf("  Actuator Status for Greenhouse %c\n", 'A'+m.selectedNode)
     s += "-----------------------------------\n"
 
-	if m.selectedNode >= len(m.nodes) {
-		s += fmt.Sprintf("Greenhouse %c not found \n", 'A'+m.selectedNode)
-		return s
-	}
-
-    if len(m.nodes) == m.selectedNode || len(m.nodes[m.selectedNode].Actuators) == 0 {
+    node := m.nodes[m.selectedNode]
+    if len(node.Actuators) == 0 {
         s += "No actuators found.\n"
         return s
     }
