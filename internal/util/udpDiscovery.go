@@ -1,33 +1,77 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
+	udpservice "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-func FindServer() (net.Addr, error) {
-	groupAddr, err := net.ResolveUDPAddr("udp", udpservice.MULTICAST_ADDR)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve address: %w", err)
-	}
-	conn, err := net.ListenUDP("udp", nil)
+const searchDuration = 3 * time.Second
+
+func FindServer() ([]net.Addr, error) {
+
+	// create UDP socket
+	conn, err := net.ListenUDP("udp4", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find an address: %w", err)
 	}
 	defer conn.Close()
-	_, err = conn.WriteToUDP([]byte("hello new phone who dis?"), groupAddr)
+
+	// send discovery message to multicast group
+	msg := messages.NewDiscoveryMessage()
+	msgEncoded, err := msg.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode discovery message: %w", err)
+	}
+	_, err = conn.WriteToUDP(msgEncoded, &udpservice.MULTICAST_ADDR)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write to group: %w", err)
 	}
-	buffer := make([]byte, 1024)
-	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 
-	_, serverAddress, err := conn.ReadFromUDP(buffer)
+	var serverAddresses []net.Addr
+	buf := make([]byte, 1024)
+
+	// context with search duration
+	ctx, cancel := context.WithTimeout(context.Background(), searchDuration)
+	defer cancel()
+	go func() {
+		for {
+			n, src, err := conn.ReadFromUDP(buf)
+			go processResponse(buf, n, src, err, &serverAddresses)
+		}
+	}()
+	<-ctx.Done()
+
+	return serverAddresses, nil
+}
+
+func processResponse(buf []byte, n int, src *net.UDPAddr, err error, serverAddresses *[]net.Addr) {
+	// check for read error
 	if err != nil {
-		return nil, fmt.Errorf("failed to read buffer: %w", err)
+		return
 	}
-	return serverAddress, nil
+
+	// client message is TLV
+	t, err := tlv.DecodeTLV(buf[:n])
+	if err != nil {
+		return
+	}
+
+	// client message is ACK/ERROR
+	msg, err := messages.DecodeAckErrorMessage(t)
+	if err != nil {
+		return
+	}
+
+	// if message is ERROR, ignore
+	if msg.IsError() {
+		return
+	}
+
+	*serverAddresses = append(*serverAddresses, src)
 }
