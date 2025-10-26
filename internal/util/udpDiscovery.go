@@ -13,7 +13,7 @@ import (
 
 const searchDuration = 3 * time.Second
 
-func FindServer() ([]net.Addr, error) {
+func FindServer() ([]net.IP, error) {
 
 	// create UDP socket
 	conn, err := net.ListenUDP("udp4", nil)
@@ -33,7 +33,7 @@ func FindServer() ([]net.Addr, error) {
 		return nil, fmt.Errorf("failed to write to group: %w", err)
 	}
 
-	var serverAddresses []net.Addr
+	var serverAddresses []net.IP
 	buf := make([]byte, 1024)
 
 	// context with search duration
@@ -50,7 +50,7 @@ func FindServer() ([]net.Addr, error) {
 	return serverAddresses, nil
 }
 
-func processResponse(buf []byte, n int, src *net.UDPAddr, err error, serverAddresses *[]net.Addr) {
+func processResponse(buf []byte, n int, src *net.UDPAddr, err error, serverAddresses *[]net.IP) {
 	// check for read error
 	if err != nil {
 		return
@@ -73,5 +73,5 @@ func processResponse(buf []byte, n int, src *net.UDPAddr, err error, serverAddre
 		return
 	}
 
-	*serverAddresses = append(*serverAddresses, src)
+	*serverAddresses = append(*serverAddresses, src.IP)
 }
