@@ -52,6 +52,6 @@ func main() {
 
 	// --- Combine all nodes ---
 	nodes := []*entity.Node{nodeA, nodeB, nodeC}
-    v := view.NewTerminalWithData(nodes)
+    v := view.NewTerminalWithData(&nodes)
     v.Start()
 }

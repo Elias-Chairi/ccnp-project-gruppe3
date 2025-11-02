@@ -1,7 +1,6 @@
 package view
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 
@@ -13,14 +12,12 @@ import (
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	reader     *bufio.Reader
-	nodes  []*entity.Node
+	nodes  *[]*entity.Node
 }
 
 // NewTerminal creates and returns a new terminal view.
-func NewTerminalWithData(nodes []*entity.Node) *TerminalView {
+func NewTerminalWithData(nodes *[]*entity.Node) *TerminalView {
 	return &TerminalView{
-		reader: bufio.NewReader(os.Stdin),
 		nodes:  nodes,
 	}
 }
@@ -56,12 +53,12 @@ type model struct {
     choices  []string
     cursor   int
     selected map[int]struct{}
-	nodes []*entity.Node
+	nodes *[]*entity.Node
 	selectedNode int
 }
 
 
-func initialModel(nodes []*entity.Node) model {
+func initialModel(nodes *[]*entity.Node) model {
     return model{
         state:    mainMenu,
         message:  "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
@@ -102,8 +99,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			limit := 0
 			switch m.state {
 			case actuatorView:
-				if len(m.nodes) > 0 {
-					limit = len(m.nodes[0].Actuators)
+				if m.selectedNode >= 0 && m.selectedNode < len(*m.nodes) {
+					node := (*m.nodes)[m.selectedNode]
+					if node != nil {
+						limit = len(node.Actuators)
+					}
 				}
 			default:
 				limit = len(m.choices)
@@ -122,13 +122,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = "Returned to main menu."
 			case connectedMenu:
 				m.state = greenhouseList
-				m.choices = []string{
-					"Greenhouse A", 
-					"Greenhouse B", 
-					"Greenhouse C", 
+				m.choices = make([]string, len(*m.nodes))
+				for i := range *m.nodes {
+					m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
 				}
 				m.cursor = 0
 				m.message = "Returned to greenhouse list."
+
 			case sensorView, actuatorView:
 				m.state = connectedMenu
 				m.choices = []string{
@@ -145,14 +145,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch m.cursor {
 				case 0:
 					// Go to greenhouse list
-					m.state = greenhouseList
-					m.choices = []string{
-						"Greenhouse A ",
-						"Greenhouse B ",
-						"Greenhouse C ",
-					}
-					m.cursor = 0
 
+				m.state = greenhouseList
+				m.choices = make([]string, len(*m.nodes))
+				for i := range *m.nodes {
+					m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+				}
+				m.cursor = 0
+				m.message = "Returned to greenhouse list."
 				default:
 					return m, tea.Quit
 				}
@@ -162,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch m.cursor {
 				case 0, 1, 2:
 					
-					if m.cursor >= len(m.nodes) {
+					if m.cursor >= len(*m.nodes) {
 						m.message = fmt.Sprintf("greenhouse %c not available.", 'A'+m.cursor)
 						return m, nil
 					}
@@ -190,18 +190,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case actuatorView:
 				// Toggle ON/OFF for the selected actuator
-				if len(m.nodes) > m.selectedNode {
-					acts := m.nodes[m.selectedNode].Actuators
+				if len(*m.nodes) > m.selectedNode {
+					acts := (*m.nodes)[m.selectedNode].Actuators
 					if len(acts) > 0 && m.cursor < len(acts) {
 						act := acts[m.cursor]
-						if state, ok := act.State.(string); ok {
-							if state == "ON" {
-								act.State = "OFF"
-							} else {
-								act.State = "ON"
-							}
-							m.message = fmt.Sprintf("Toggled %s to %s", act.Type, act.State)
+					switch v := act.State.(type) {
+					case bool:
+						act.State = !v
+						m.message = fmt.Sprintf("Toggled %s to %v", act.Type, act.State)
+
+					case string:
+						if v == "ON" {
+							act.State = "OFF"
+						} else {
+							act.State = "ON"
 						}
+						m.message = fmt.Sprintf("Toggled %s to %s", act.Type, act.State)
+
+					default:
+						m.message = fmt.Sprintf("Actuator %s has unsupported state type: %T", act.Type, act.State)
+					}
+
 					}	
 				}	else {
 					m.message = fmt.Sprintf("Greenhouse %c does not exist.", 'A'+m.selectedNode)
@@ -222,16 +231,16 @@ func (m model) View() string {
 	switch m.state {
 
 	case mainMenu:
-		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message, m.nodes)
+		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message, *m.nodes)
 
 	case greenhouseList:
-		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message, m.nodes)
+		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message, *m.nodes)
 
 	case connectedMenu:
-		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message, m.nodes)
+		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message, *m.nodes)
 
 	case sensorView:
-    	return renderSensorView(m.nodes, m.selectedNode)
+    	return renderSensorView(*m.nodes, m.selectedNode)
 	case actuatorView:
     	return renderActuatorView(m)
 
@@ -253,11 +262,6 @@ func renderMenu(title string, choices []string, cursor int, message string, node
 			prefix = ">"
 		}
 
-		if title == "Available Greenhouses:" {
-			if  i >= len(nodes) {
-				choice = lipgloss.NewStyle().Faint(true).Render(choice + "(unavalable)")
-			}
-		}
 		s += fmt.Sprintf("%s %s\n", prefix, choice)
 	}
 
@@ -298,14 +302,14 @@ func renderSensorView(nodes []*entity.Node, selectedNode int) string {
 }
 
 func renderActuatorView(m model) string {
-    if m.selectedNode >= len(m.nodes) {
+    if m.selectedNode >= len(*m.nodes) {
         return fmt.Sprintf("Greenhouse %c not found.\n", 'A'+m.selectedNode)
     }
 
     s := fmt.Sprintf("  Actuator Status for Greenhouse %c\n", 'A'+m.selectedNode)
     s += "-----------------------------------\n"
 
-    node := m.nodes[m.selectedNode]
+    node := (*m.nodes)[m.selectedNode]
     if len(node.Actuators) == 0 {
         s += "No actuators found.\n"
         return s
@@ -315,7 +319,7 @@ func renderActuatorView(m model) string {
         Bold(true).
         Foreground(lipgloss.Color("#e1ce40ff"))
 
-    for i, act := range m.nodes[m.selectedNode].Actuators {
+    for i, act := range (*m.nodes)[m.selectedNode].Actuators {
 
 		var style lipgloss.Style
 
