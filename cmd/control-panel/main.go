@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	nodeA := &entity.Node{
+	nodeA := entity.Node{
 		ID: 1,
 		Sensors: []*entity.Sensor[any]{
 			{ID: 1, Type: "Temperature", Unit: "°C", Value: 22.3},
@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// --- Greenhouse B ---
-	nodeB := &entity.Node{
+	nodeB := entity.Node{
 		ID: 2,
 		Sensors: []*entity.Sensor[any]{
 			{ID: 1, Type: "Temperature", Unit: "°C", Value: 25.7},
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// --- Greenhouse C ---
-	nodeC := &entity.Node{
+	nodeC := entity.Node{
 		ID: 3,
 		Sensors: []*entity.Sensor[any]{
 			{ID: 1, Type: "Temperature", Unit: "°C", Value: 19.5},
@@ -44,14 +44,14 @@ func main() {
 			{ID: 3, Type: "CO2", Unit: "ppm", Value: 450},
 		},
 		Actuators: []*entity.Actuator[any]{
-			{ID: 1, Type: "Heater", Unit: "", State: "ON"},
-			{ID: 2, Type: "Fan", Unit: "", State: "ON"},
+			{ID: 1, Type: "Heater", Unit: "", State: false},
+			{ID: 2, Type: "Fan", Unit: "", State: true},
 			{ID: 3, Type: "Sprinkler", Unit: "", State: "OFF"},
 		},
 	}
 
 	// --- Combine all nodes ---
-	nodes := []*entity.Node{nodeA, nodeB, nodeC}
-    v := view.NewTerminalWithData(&nodes)
+	nodes := []entity.Node{nodeA, nodeB, nodeC}
+	v := view.TerminalView{Nodes : nodes}
     v.Start()
 }

@@ -12,27 +12,15 @@ import (
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	nodes  *[]*entity.Node
-}
-
-// NewTerminal creates and returns a new terminal view.
-func NewTerminalWithData(nodes *[]*entity.Node) *TerminalView {
-	return &TerminalView{
-		nodes:  nodes,
-	}
+	Nodes  []entity.Node
 }
 
 func (v *TerminalView) Start() {
-	p := tea.NewProgram(initialModel(v.nodes))
+	p := tea.NewProgram(initialModel(v.Nodes))
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
-}
-
-// ChangeLabel would be used by the controller (compatibility placeholder).
-func (v *TerminalView) ChangeLabel(text string) {
-	fmt.Println("INFO:", text)
 }
 
 // --------------------- Bubble Tea Model ---------------------
@@ -53,18 +41,18 @@ type model struct {
     choices  []string
     cursor   int
     selected map[int]struct{}
-	nodes *[]*entity.Node
+	nodes *[]entity.Node
 	selectedNode int
 }
 
 
-func initialModel(nodes *[]*entity.Node) model {
+func initialModel(nodes []entity.Node) tea.Model {
     return model{
         state:    mainMenu,
         message:  "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
         choices:  []string{"Manage Greenhouses", "Exit"},
         selected: make(map[int]struct{}),
-        nodes:    nodes,
+        nodes:    &nodes,
 		selectedNode: 0,
     }
 }
@@ -99,12 +87,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			limit := 0
 			switch m.state {
 			case actuatorView:
-				if m.selectedNode >= 0 && m.selectedNode < len(*m.nodes) {
 					node := (*m.nodes)[m.selectedNode]
-					if node != nil {
-						limit = len(node.Actuators)
-					}
-				}
+					limit = len(node.Actuators)
 			default:
 				limit = len(m.choices)
 			}
@@ -231,13 +215,13 @@ func (m model) View() string {
 	switch m.state {
 
 	case mainMenu:
-		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message, *m.nodes)
+		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
 
 	case greenhouseList:
-		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message, *m.nodes)
+		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
 
 	case connectedMenu:
-		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message, *m.nodes)
+		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
 
 	case sensorView:
     	return renderSensorView(*m.nodes, m.selectedNode)
@@ -252,7 +236,7 @@ func (m model) View() string {
 
 
 // Renders a menu with the given title, choices, cursor position, and message.
-func renderMenu(title string, choices []string, cursor int, message string, nodes []*entity.Node) string {
+func renderMenu(title string, choices []string, cursor int, message string) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00aa55")).Render(title)
 	s += "\n-----------------------------\n"
 
@@ -272,10 +256,7 @@ func renderMenu(title string, choices []string, cursor int, message string, node
 	return s
 }
 
-func renderSensorView(nodes []*entity.Node, selectedNode int) string {
-	if selectedNode >= len(nodes) {
-        return fmt.Sprintf("Greenhouse %c not found.\nPress q to quit or backspace to go back.", 'A'+selectedNode)
-    }
+func renderSensorView(nodes []entity.Node, selectedNode int) string {
 
     s := fmt.Sprintf(" Sensor Data for Greenhouse %c\n", 'A'+selectedNode)
     s += "--------------------------------\n"
