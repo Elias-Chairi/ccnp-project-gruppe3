@@ -19,7 +19,11 @@ func StartUDPService() {
 	if err != nil {
 		log.Fatal("Error listening on multicast udp")
 	}
-	defer conn.Close()
+	defer func (){
+		if err := conn.Close(); err != nil{
+			log.Println("Failed closing the connection: ", err)
+		}
+	}()
 
 	log.Printf("Listening for multicast messages on %s\n", MULTICAST_ADDR.String())
 
@@ -72,7 +76,10 @@ func processRequest(buf []byte, n int, src *net.UDPAddr, err error) {
 		log.Printf("error writing ACK message: %v", err)
 		return
 	}
-	replyConn.Close()
+	err = replyConn.Close()
+	if err != nil {
+		log.Println("Error closing reply conn: ", err)
+	}
 
 	log.Printf("Replied to %v with ACK message\n", src)
 }

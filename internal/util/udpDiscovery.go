@@ -20,8 +20,10 @@ func FindServer() ([]net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find an address: %w", err)
 	}
-	defer conn.Close()
 
+	defer func (){
+		_ = conn.Close();
+	}()
 	// send discovery message to multicast group
 	msg := messages.NewDiscoveryMessage()
 	msgEncoded, err := msg.Encode()
