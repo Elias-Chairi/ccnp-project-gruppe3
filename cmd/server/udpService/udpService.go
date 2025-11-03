@@ -13,6 +13,7 @@ var MULTICAST_ADDR = net.UDPAddr{
 	Port: 9999,
 }
 
+// StartUDPService starts the UDP service that listens for discovery messages and responds with ACKs.
 func StartUDPService() {
 	// Create a UDP socket bound to the multicast address
 	conn, err := net.ListenMulticastUDP("udp4", nil, &MULTICAST_ADDR)
@@ -37,6 +38,7 @@ func StartUDPService() {
 	}
 }
 
+// processRequest processes incoming UDP discovery requests and sends ACK responses.
 func processRequest(data []byte, src *net.UDPAddr) {
 	// client message is TLV
 	t, err := tlv.DecodeTLV(data)

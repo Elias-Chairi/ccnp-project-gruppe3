@@ -14,6 +14,8 @@ import (
 
 const searchDuration = 3 * time.Second
 
+// FindServer sends a UDP discovery message to the multicast group and listens for ACK responses.
+// It returns a slice of IP addresses of discovered servers.
 func FindServer() ([]net.IP, error) {
 	// create UDP socket
 	conn, err := net.ListenUDP("udp4", nil)
@@ -68,16 +70,17 @@ func FindServer() ([]net.IP, error) {
 	return serverAddrSlice, nil
 }
 
+// processResponse processes incoming UDP responses and sends server IPs to the channel.
 func processResponse(data []byte, src *net.UDPAddr, serverAddrChan chan<- net.IP, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	// client message is TLV
+	// server message is TLV
 	t, err := tlv.DecodeTLV(data)
 	if err != nil {
 		return
 	}
 
-	// client message is ACK/ERROR
+	// server message is ACK/ERROR
 	msg, err := messages.DecodeAckErrorMessage(t)
 	if err != nil {
 		return
