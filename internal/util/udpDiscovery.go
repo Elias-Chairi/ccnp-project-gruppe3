@@ -1,9 +1,10 @@
 package util
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	udpservice "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
@@ -34,32 +35,42 @@ func FindServer() ([]net.IP, error) {
 		return nil, fmt.Errorf("failed to write to group: %w", err)
 	}
 
-	// create timeout context to stop searching after searchDuration
-	ctx, cancel := context.WithTimeout(context.Background(), searchDuration)
-	var serverAddresses []net.IP
-	defer cancel()
+	serverAddrChan := make(chan net.IP)
+	var wg sync.WaitGroup
+
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				buf := make([]byte, 1024)
-				n, src, err := conn.ReadFromUDP(buf)
-				if err != nil {
-					continue
-				}
-				go processResponse(buf[:n], src, &serverAddresses)
+		time.Sleep(searchDuration)
+		_ = conn.Close() // release thread blocked on ReadFromUDP
+		wg.Wait()        // wait for processResponse goroutines to finish
+		close(serverAddrChan)
+	}()
+
+	for {
+		buf := make([]byte, 1024)
+		n, src, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				break // timeout reached, stop listening
+			} else {
+				continue // ignore other errors
 			}
 		}
-	}()
-	<-ctx.Done()
-	_ = conn.Close() // release thread blocked on ReadFromUDP
+		wg.Add(1)
+		go processResponse(buf[:n], src, serverAddrChan, &wg)
+	}
 
-	return serverAddresses, nil
+	// wait until channel is closed
+	serverAddrSlice := []net.IP{}
+	for val := range serverAddrChan {
+		serverAddrSlice = append(serverAddrSlice, val)
+	}
+
+	return serverAddrSlice, nil
 }
 
-func processResponse(data []byte, src *net.UDPAddr, serverAddresses *[]net.IP) {
+func processResponse(data []byte, src *net.UDPAddr, serverAddrChan chan<- net.IP, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	// client message is TLV
 	t, err := tlv.DecodeTLV(data)
 	if err != nil {
@@ -77,5 +88,6 @@ func processResponse(data []byte, src *net.UDPAddr, serverAddresses *[]net.IP) {
 		return
 	}
 
-	*serverAddresses = append(*serverAddresses, src.IP)
+	// send server address to channel (it doesn't close until all responses are processed)
+	serverAddrChan <- src.IP
 }

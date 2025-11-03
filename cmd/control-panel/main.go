@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"runtime"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
@@ -13,5 +14,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Printf("I got the address %v", addr)
+	fmt.Printf("I got the address %v\n", addr)
+	fmt.Println("Goroutines:", runtime.NumGoroutine())
 }
