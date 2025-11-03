@@ -19,30 +19,27 @@ func StartUDPService() {
 	if err != nil {
 		log.Fatal("Error listening on multicast udp")
 	}
-	defer func (){
-		if err := conn.Close(); err != nil{
-			log.Println("Failed closing the connection: ", err)
-		}
+	defer func() {
+		_ = conn.Close()
 	}()
 
 	log.Printf("Listening for multicast messages on %s\n", MULTICAST_ADDR.String())
 
-	buf := make([]byte, 1024)
+	// Continuously read from the UDP socket
 	for {
+		buf := make([]byte, 1024)
 		n, src, err := conn.ReadFromUDP(buf)
-		go processRequest(buf, n, src, err)
+		if err != nil {
+			log.Printf("error reading from udp connection: %v", err)
+			continue
+		}
+		go processRequest(buf[:n], src)
 	}
 }
 
-func processRequest(buf []byte, n int, src *net.UDPAddr, err error) {
-	// check for read error
-	if err != nil {
-		log.Printf("error reading from udp connection: %v", err)
-		return
-	}
-
+func processRequest(data []byte, src *net.UDPAddr) {
 	// client message is TLV
-	t, err := tlv.DecodeTLV(buf[:n])
+	t, err := tlv.DecodeTLV(data)
 	if err != nil {
 		log.Printf("error decoding TLV: %v", err)
 		return
@@ -76,10 +73,7 @@ func processRequest(buf []byte, n int, src *net.UDPAddr, err error) {
 		log.Printf("error writing ACK message: %v", err)
 		return
 	}
-	err = replyConn.Close()
-	if err != nil {
-		log.Println("Error closing reply conn: ", err)
-	}
+	_ = replyConn.Close()
 
 	log.Printf("Replied to %v with ACK message\n", src)
 }

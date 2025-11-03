@@ -14,16 +14,15 @@ import (
 const searchDuration = 3 * time.Second
 
 func FindServer() ([]net.IP, error) {
-
 	// create UDP socket
 	conn, err := net.ListenUDP("udp4", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find an address: %w", err)
 	}
-
-	defer func (){
-		_ = conn.Close();
+	defer func() {
+		_ = conn.Close()
 	}()
+
 	// send discovery message to multicast group
 	msg := messages.NewDiscoveryMessage()
 	msgEncoded, err := msg.Encode()
@@ -35,31 +34,34 @@ func FindServer() ([]net.IP, error) {
 		return nil, fmt.Errorf("failed to write to group: %w", err)
 	}
 
-	var serverAddresses []net.IP
-	buf := make([]byte, 1024)
-
-	// context with search duration
+	// create timeout context to stop searching after searchDuration
 	ctx, cancel := context.WithTimeout(context.Background(), searchDuration)
+	var serverAddresses []net.IP
 	defer cancel()
 	go func() {
 		for {
-			n, src, err := conn.ReadFromUDP(buf)
-			go processResponse(buf, n, src, err, &serverAddresses)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				buf := make([]byte, 1024)
+				n, src, err := conn.ReadFromUDP(buf)
+				if err != nil {
+					continue
+				}
+				go processResponse(buf[:n], src, &serverAddresses)
+			}
 		}
 	}()
 	<-ctx.Done()
+	_ = conn.Close() // release thread blocked on ReadFromUDP
 
 	return serverAddresses, nil
 }
 
-func processResponse(buf []byte, n int, src *net.UDPAddr, err error, serverAddresses *[]net.IP) {
-	// check for read error
-	if err != nil {
-		return
-	}
-
+func processResponse(data []byte, src *net.UDPAddr, serverAddresses *[]net.IP) {
 	// client message is TLV
-	t, err := tlv.DecodeTLV(buf[:n])
+	t, err := tlv.DecodeTLV(data)
 	if err != nil {
 		return
 	}
