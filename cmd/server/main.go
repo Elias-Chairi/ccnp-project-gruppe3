@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
+	udpservice "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
 )
 
 func main() {
-	fmt.Println("starting service")
+	log.Println("starting service")
 	udpservice.StartUDPService()
 }

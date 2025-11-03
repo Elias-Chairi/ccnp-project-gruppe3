@@ -18,7 +18,7 @@ func StartUDPService() {
 	// Create a UDP socket bound to the multicast address
 	conn, err := net.ListenMulticastUDP("udp4", nil, &MULTICAST_ADDR)
 	if err != nil {
-		log.Fatal("Error listening on multicast udp")
+		log.Fatalf("Error listening on multicast udp: %v", err)
 	}
 	defer func() {
 		_ = conn.Close()

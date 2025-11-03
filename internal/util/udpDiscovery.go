@@ -22,9 +22,6 @@ func FindServer() ([]net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find an address: %w", err)
 	}
-	defer func() {
-		_ = conn.Close()
-	}()
 
 	// send discovery message to multicast group
 	msg := messages.NewDiscoveryMessage()
@@ -62,7 +59,7 @@ func FindServer() ([]net.IP, error) {
 	}
 
 	// wait until channel is closed
-	serverAddrSlice := []net.IP{}
+	var serverAddrSlice []net.IP
 	for val := range serverAddrChan {
 		serverAddrSlice = append(serverAddrSlice, val)
 	}
