@@ -2,10 +2,12 @@ package tcpservice
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
@@ -36,64 +38,109 @@ func StartTCPService() {
 			log.Println("Failed to accept connection:", err)
 			continue
 		}
-		go handleRegistration(conn)
+		go func() {
+			log.Println("New connection from:", conn.RemoteAddr())
+			if err := handleRegistration(conn); err != nil {
+				log.Println("Error handling registration:", err)
+			}
+			log.Println("Connection closed:", conn.RemoteAddr())
+		}()
 	}
 }
 
-// Handle connection
-func handleRegistration(conn net.Conn) {
+// handleRegistration handles the registration process and all further communication with the client.
+// Only returns when the connection is closed or an unrecoverable error occurs.
+func handleRegistration(conn net.Conn) error {
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	// read first TLV to determine type of registration
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil {
-		log.Println("Error reading from conn:", err)
 		_ = conn.Close()
-		return
+		return fmt.Errorf("error reading conn bytes %w", err)
 	}
-	err = registerClient(buf[:n], conn)
-	if err != nil {
-		log.Println("Failed to registe client:", err)
-	}
-}
 
-func registerClient(msg []byte, conn net.Conn) error {
-	t, err := tlv.DecodeTLV(msg)
+	// decode TLV to get registration type
+	t, err := tlv.DecodeTLV(buf[:n])
 	if err != nil {
-		return fmt.Errorf("Failed to decode TLV: %w", err)
+		return fmt.Errorf("error decoding TLV %w", err)
 	}
+
+	// handle based on registration type
 	switch t.Type() {
 	case uint8(constants.REGISTER_NODE):
-		return handleConn(conn, t.Type(), handleNode)
-
-	// case uint8(constants.REGISTER_CONTROL):
-	// 	return handleConn()
-
+		_, err := messages.DecodeRegisterNodeMessage(t)
+		if err != nil {
+			return fmt.Errorf("error decoding register node message %w", err)
+		}
+		// todo: reply with assigned node ID
+		// todo: send new node to control panel(s)
+		handleConn(conn, handleNode)
+	case uint8(constants.REGISTER_CONTROL):
+		_, err := messages.DecodeRegisterControlMessage(t)
+		if err != nil {
+			return fmt.Errorf("error decoding register control panel message %w", err)
+		}
+		// todo: reply with current node list
+		handleConn(conn, handleControlPanel)
 	default:
-		return fmt.Errorf("Message Registration type '%v' is invalid", t.Type())
-
+		return fmt.Errorf("invalid registration type %v", t.Type())
 	}
 
+	return nil
 }
 
-func handleConn(conn net.Conn, ty uint8, f func(ty uint8, t []tlv.TLV) error) error {
+// Generic connection handler.
+// Reads TLVs from the connection and passes them to the provided handler function.
+// Read loop continues until the connection is closed.
+func handleConn(conn net.Conn, f func(t tlv.TLV) error) {
 	buf := make([]byte, 1024)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			return fmt.Errorf("Error reading conn bytes %w", err)
+			if err == io.EOF {
+				return // connection closed by client
+			} else {
+				continue // ignore other read errors
+			}
 		}
-		ts, err := tlv.DecodeMultipleTLVs(buf[:n])
+		t, err := tlv.DecodeTLV(buf[:n])
 		if err != nil {
-			return fmt.Errorf("Error decoding TLV %w", err)
+			// todo: reply to client with error message
 		}
-		err = f(ty, ts)
+		err = f(t)
 		if err != nil {
-			return fmt.Errorf("Error: %w", err)
+			// todo: reply to client with error message
 
 		}
 	}
 }
 
-func handleNode(ty uint8, t []tlv.TLV) error {
-	return nil
+func handleNode(t tlv.TLV) error {
+	switch t.Type() {
+	case uint8(constants.SENSOR_UPDATE):
+		// todo: handle sensor update
+		return nil
+	case uint8(constants.ACK_ERROR):
+		// todo: handle ack error
+		return nil
+	default:
+		return fmt.Errorf("invalid type %v for node handler", t.Type())
+	}
+}
 
+func handleControlPanel(t tlv.TLV) error {
+	switch t.Type() {
+	case uint8(constants.COMMAND):
+		// todo: handle command
+		return nil
+	case uint8(constants.ACK_ERROR):
+		// todo: handle ack error
+		return nil
+	default:
+		return fmt.Errorf("invalid type %v for control panel handler", t.Type())
+	}
 }
