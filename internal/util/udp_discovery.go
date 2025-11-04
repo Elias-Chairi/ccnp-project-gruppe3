@@ -7,18 +7,21 @@ import (
 	"sync"
 	"time"
 
-	udpservice "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpservice"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-const searchDuration = 3 * time.Second
+var localhostAddr = net.UDPAddr{
+	IP:   net.ParseIP("127.0.0.1"), // localhost
+	Port: 0,                        // let the OS assign a free port
+}
 
 // FindServer sends a UDP discovery message to the multicast group and listens for ACK responses.
 // It returns a slice of IP addresses of discovered servers.
-func FindServer() ([]net.IP, error) {
+func FindServer(searchDuration time.Duration) ([]net.IP, error) {
 	// create UDP socket
-	conn, err := net.ListenUDP("udp4", nil)
+	conn, err := net.ListenUDP("udp4", &localhostAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find an address: %w", err)
 	}
