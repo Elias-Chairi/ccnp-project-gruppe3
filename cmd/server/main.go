@@ -3,10 +3,14 @@ package main
 import (
 	"log"
 
-	udpservice "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpService"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/tcpservice"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpservice"
 )
 
 func main() {
-	log.Println("starting service")
-	udpservice.StartUDPService()
+	log.Println("starting UDP service...")
+	go udpservice.StartUDPService()
+
+	log.Println("starting TCP service...")
+	go tcpservice.StartTCPService()
 }
