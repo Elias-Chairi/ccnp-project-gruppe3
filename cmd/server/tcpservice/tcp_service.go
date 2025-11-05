@@ -1,10 +1,13 @@
 package tcpservice
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
+	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
@@ -17,6 +20,8 @@ var tcpServiceAddress = net.TCPAddr{
 	// port sat in protocol document
 	Port: 6000,
 }
+
+const readDeadline = 5 * time.Second
 
 func StartTCPService() {
 
@@ -39,10 +44,35 @@ func StartTCPService() {
 		go func() {
 			log.Println("New connection from:", conn.RemoteAddr())
 			if err := handleRegistration(conn); err != nil {
-				log.Println("Error handling registration:", err)
+				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+					log.Println("Connection closed by client:", conn.RemoteAddr())
+				} else {
+					log.Println("Connection closed with unrecoverable error from", conn.RemoteAddr(), ":", err)
+				}
 			}
-			log.Println("Connection closed:", conn.RemoteAddr())
 		}()
+	}
+}
+
+// readNextTRLV reads the next TRLV from the connection.
+func readNextTRLV(conn net.Conn) (*tlv.TRLV, error) {
+	for {
+		// dosent make sense to read forever since if the recived data is too far apart in time
+		// it is not likely that they belong to the same message or that the client is dead.
+		conn.SetReadDeadline(time.Now().Add(readDeadline))
+		trlv, n, err := tlv.ReadTRLV(conn)
+		if err != nil {
+			if errors.Is(err, os.ErrDeadlineExceeded) && n == 0 {
+				// timeout occurred without reading any data, continue reading holding the connection open indefinitely
+				continue
+			}
+
+			// if an error occurs during the top-level TRLV read, it cannot continue processing
+			// because it cannot determine if the next bytes belong to the current message or the next one.
+			return nil, fmt.Errorf("error reading TRLV from connection: %w", err)
+		}
+
+		return trlv, nil
 	}
 }
 
@@ -53,24 +83,15 @@ func handleRegistration(conn net.Conn) error {
 		_ = conn.Close()
 	}()
 
-	// read first TLV to determine type of registration
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
+	trlv, err := readNextTRLV(conn)
 	if err != nil {
-		_ = conn.Close()
-		return fmt.Errorf("error reading conn bytes %w", err)
-	}
-
-	// decode TLV to get registration type
-	t, err := tlv.DecodeTLV(buf[:n])
-	if err != nil {
-		return fmt.Errorf("error decoding TLV %w", err)
+		return fmt.Errorf("error reading registration TRLV: %w", err)
 	}
 
 	// handle based on registration type
-	switch t.Type() {
+	switch trlv.TLV.Type() {
 	case uint8(constants.REGISTER_NODE):
-		_, err := messages.DecodeRegisterNodeMessage(t)
+		_, err := messages.DecodeRegisterNodeMessage(trlv.TLV)
 		if err != nil {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
@@ -78,14 +99,14 @@ func handleRegistration(conn net.Conn) error {
 		// todo: send new node to control panel(s)
 		handleConn(conn, handleNode)
 	case uint8(constants.REGISTER_CONTROL):
-		_, err := messages.DecodeRegisterControlMessage(t)
+		_, err := messages.DecodeRegisterControlMessage(trlv.TLV)
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
 		// todo: reply with current node list
 		handleConn(conn, handleControlPanel)
 	default:
-		return fmt.Errorf("invalid registration type %v", t.Type())
+		return fmt.Errorf("invalid registration type %v", trlv.TLV.Type())
 	}
 
 	return nil
