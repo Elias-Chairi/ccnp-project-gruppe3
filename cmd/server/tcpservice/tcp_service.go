@@ -20,18 +20,18 @@ var tcpServiceAddress = net.TCPAddr{
 
 func StartTCPService() {
 
-	listner, err := net.ListenTCP("tcp4", &tcpServiceAddress)
+	listener, err := net.ListenTCP("tcp4", &tcpServiceAddress)
 	if err != nil {
 		log.Fatal("Error listening TCP:", err)
 	}
 	defer func() {
-		_ = listner.Close()
+		_ = listener.Close()
 	}()
 
-	log.Printf("Listening on: %s\n", listner.Addr())
+	log.Printf("Listening on: %s\n", listener.Addr())
 
 	for {
-		conn, err := listner.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			log.Println("Failed to accept connection:", err)
 			continue
@@ -111,6 +111,7 @@ func handleConn(conn net.Conn, f ConnHandler) {
 		t, err := tlv.DecodeTLV(buf[:n])
 		if err != nil {
 			sendError(conn, constants.ERR_MALFORMED_MESSAGE)
+			continue // ignore malformed TLVs
 		}
 		if code, err := f(t); err != nil || code != constants.ACK_SUCCESS {
 			sendError(conn, code)

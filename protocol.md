@@ -116,16 +116,16 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 
 Acknowledgment and error code should be the first byte of the Value field in an ACK/ERROR message. Extra data (e.g., error description) may follow. Extra data is interpreted as a UTF-8 string.
 
-| Code (hex) | Meaning                 |
-| ---------- | ----------------------- |
-| `0xA0`     | ACK: success            |
-| `0xA1`     | ERR: Unknown NodeID     |
-| `0xA2`     | ERR: Unknown SensorID   |
-| `0xA3`     | ERR: Unknown ActuatorID |
-| `0xA4`     | ERR: Invalid Action     |
-| `0xA5`     | ERR: Invalid value      |
-| `0xA6`     | ERR: Malformed message  |
-| `0xA7`     | ERR: Invalid message type|
+| Code (hex) | Meaning                   |
+| ---------- | ------------------------- |
+| `0xA0`     | ACK: success              |
+| `0xA1`     | ERR: Unknown NodeID       |
+| `0xA2`     | ERR: Unknown SensorID     |
+| `0xA3`     | ERR: Unknown ActuatorID   |
+| `0xA4`     | ERR: Invalid Action       |
+| `0xA5`     | ERR: Invalid value        |
+| `0xA6`     | ERR: Malformed message    |
+| `0xA7`     | ERR: Invalid message type |
 
 ## Supported actuators
 
