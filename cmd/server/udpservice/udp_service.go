@@ -4,8 +4,8 @@ import (
 	"log"
 	"net"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 var MULTICAST_ADDR = net.UDPAddr{
@@ -41,7 +41,7 @@ func StartUDPService() {
 // processRequest processes incoming UDP discovery requests and sends ACK responses.
 func processRequest(data []byte, src *net.UDPAddr) {
 	// client message is TLV
-	t, err := tlv.DecodeTLV(data)
+	t, err := encoding.DecodeTLV(data)
 	if err != nil {
 		log.Printf("error decoding TLV: %v", err)
 		return

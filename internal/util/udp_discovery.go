@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpservice"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 var localhostAddr = net.UDPAddr{
@@ -75,7 +75,7 @@ func processResponse(data []byte, src *net.UDPAddr, serverAddrChan chan<- net.IP
 	defer wg.Done()
 
 	// server message is TLV
-	t, err := tlv.DecodeTLV(data)
+	t, err := encoding.DecodeTLV(data)
 	if err != nil {
 		return
 	}

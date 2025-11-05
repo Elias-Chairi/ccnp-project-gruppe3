@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestEncode_SingleActuator(t *testing.T) {
 func TestDecode_SingleActuator(t *testing.T) {
 	assert := assert.New(t)
 
-	encoded, _ := tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), []byte{0x42})
+	encoded, _ := encoding.NewTLV(uint8(constants.SINGLE_ACTUATOR), []byte{0x42})
 	selectorDecoded, err := selectors.DecodeActuatorSelector(encoded)
 	assert.NoError(err)
 	assert.Equal(constants.SINGLE_ACTUATOR, selectorDecoded.Type)
@@ -71,7 +71,7 @@ func TestEncode_ActuatorList(t *testing.T) {
 func TestDecode_ActuatorList(t *testing.T) {
 	assert := assert.New(t)
 
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_LIST), []byte{0x01, 0x02, 0x03})
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_LIST), []byte{0x01, 0x02, 0x03})
 	selectorDecoded, err := selectors.DecodeActuatorSelector(encodedTLV)
 	assert.NoError(err)
 	assert.Equal(constants.ACTUATOR_LIST, selectorDecoded.Type)
@@ -105,7 +105,7 @@ func TestEncode_ActuatorType(t *testing.T) {
 func TestDecode_ActuatorType(t *testing.T) {
 	assert := assert.New(t)
 
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte("temperature"))
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte("temperature"))
 	selectorDecoded, err := selectors.DecodeActuatorSelector(encodedTLV)
 	assert.NoError(err)
 	assert.Equal(constants.ACTUATOR_TYPE, selectorDecoded.Type)
@@ -139,7 +139,7 @@ func TestEncode_AllActuators(t *testing.T) {
 func TestDecode_AllActuators(t *testing.T) {
 	assert := assert.New(t)
 
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{})
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{})
 	selectorDecoded, err := selectors.DecodeActuatorSelector(encodedTLV)
 	assert.NoError(err)
 	assert.Equal(constants.ALL_ACTUATORS, selectorDecoded.Type)
@@ -177,12 +177,12 @@ func TestDecodeInvalidState_SingleActuator(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with length=0
-	tlvData, _ := tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), nil)
+	tlvData, _ := encoding.NewTLV(uint8(constants.SINGLE_ACTUATOR), nil)
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(err)
 
 	// Decode with length=2
-	tlvData, _ = tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), []byte{0x01, 0x02})
+	tlvData, _ = encoding.NewTLV(uint8(constants.SINGLE_ACTUATOR), []byte{0x01, 0x02})
 	_, err = selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(err)
 }
@@ -212,7 +212,7 @@ func TestEncodeInvalidState_ActuatorList(t *testing.T) {
 
 func TestDecodeInvalidState_ActuatorList(t *testing.T) {
 	// Decode with length=0
-	tlvData, _ := tlv.NewTLV(uint8(constants.ACTUATOR_LIST), nil)
+	tlvData, _ := encoding.NewTLV(uint8(constants.ACTUATOR_LIST), nil)
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(t, err)
 }
@@ -252,12 +252,12 @@ func TestDecodeInvalidState_ActuatorType(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with length=0
-	tlvData, _ := tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), nil)
+	tlvData, _ := encoding.NewTLV(uint8(constants.ACTUATOR_TYPE), nil)
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(err)
 
 	// Decode with whitespace-only value
-	tlvData, _ = tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte("   "))
+	tlvData, _ = encoding.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte("   "))
 	_, err = selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(err)
 }
@@ -280,7 +280,7 @@ func TestDecodeInvalidState_AllActuators(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with non-empty value
-	tlvData, _ := tlv.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{0x42})
+	tlvData, _ := encoding.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{0x42})
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(err)
 }
@@ -294,7 +294,7 @@ func TestActuatorSelectorEncodeInvalidState_UnknownType(t *testing.T) {
 }
 
 func TestActuatorSelectorDecodeInvalidState_UnknownType(t *testing.T) {
-	tlvData, _ := tlv.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
+	tlvData, _ := encoding.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
 	_, err := selectors.DecodeActuatorSelector(tlvData)
 	assert.Error(t, err)
 }

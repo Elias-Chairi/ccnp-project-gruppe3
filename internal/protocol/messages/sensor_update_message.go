@@ -6,7 +6,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // sensorUpdateMessage represents a SENSOR_UPDATE message (Type SENSOR_UPDATE).
@@ -39,11 +38,11 @@ func NewSensorUpdateMessageWithNode(nodeID uint8, sensor entity.Sensor[any]) *se
 
 // Encode encodes the SENSOR_UPDATE message to bytes.
 func (m *sensorUpdateMessage) Encode() ([]byte, error) {
-	var tlvs []tlv.TLV
+	var tlvs []encoding.TLV
 
 	// Encode node ID if present
 	if m.NodeID != nil {
-		tlv, err := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{*m.NodeID})
+		tlv, err := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{*m.NodeID})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SINGLE_NODE TLV: %w", err)
 		}
@@ -58,8 +57,8 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	tlvs = append(tlvs, entryTLV)
 
 	// Wrap in SENSOR_UPDATE TLV
-	value := tlv.EncodeMultipleTLVs(tlvs)
-	mainTLV, err := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), value)
+	value := encoding.EncodeMultipleTLVs(tlvs)
+	mainTLV, err := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_UPDATE TLV: %w", err)
 	}
@@ -73,7 +72,7 @@ func (m *sensorUpdateMessage) Type() constants.MessageType {
 
 // DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV.
 // Validates type (SENSOR_UPDATE), optional NodeID TLV length (1), and presence of sensor entry.
-func DecodeSensorUpdateMessage(t tlv.TLV) (*sensorUpdateMessage, error) {
+func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
 	}
@@ -81,7 +80,7 @@ func DecodeSensorUpdateMessage(t tlv.TLV) (*sensorUpdateMessage, error) {
 		return nil, fmt.Errorf("expected SENSOR_UPDATE type, got %x", t.Type())
 	}
 
-	tlvs, err := tlv.DecodeMultipleTLVs(t.Value())
+	tlvs, err := encoding.DecodeMultipleTLVs(t.Value())
 	if err != nil {
 		return nil, err
 	}

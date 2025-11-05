@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
 
 // ackErrorMessage represents an ACK or ERROR message (ACK_ERROR).
@@ -49,7 +49,7 @@ func (m *ackErrorMessage) Encode() ([]byte, error) {
 	}
 	value[0] = uint8(m.Code)
 
-	tlv, err := tlv.NewTLV(uint8(constants.ACK_ERROR), value)
+	tlv, err := encoding.NewTLV(uint8(constants.ACK_ERROR), value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACK_ERROR TLV: %w", err)
 	}
@@ -68,7 +68,7 @@ func (m *ackErrorMessage) IsError() bool {
 
 // DecodeAckErrorMessage decodes an ACK/ERROR message (Type ACK_ERROR) from TLV.
 // Validates type, minimum length (1), and code range.
-func DecodeAckErrorMessage(tlv tlv.TLV) (ackErrorMessage, error) {
+func DecodeAckErrorMessage(tlv encoding.TLV) (ackErrorMessage, error) {
 	if tlv == nil {
 		return ackErrorMessage{}, fmt.Errorf("TLV is nil")
 	}

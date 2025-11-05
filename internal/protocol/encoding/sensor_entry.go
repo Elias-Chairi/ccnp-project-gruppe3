@@ -5,29 +5,28 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // EncodeSensorEntry encodes a sensor into a SENSOR_ENTRY TLV with nested fields.
-func EncodeSensorEntry(s entity.Sensor[any]) (tlv.TLV, error) {
-	var tlvs []tlv.TLV
+func EncodeSensorEntry(s entity.Sensor[any]) (TLV, error) {
+	var tlvs []TLV
 
 	// Sensor ID
-	sid, err := tlv.NewTLV(uint8(constants.SENSOR_ID), EncodeByte(s.ID))
+	sid, err := NewTLV(uint8(constants.SENSOR_ID), EncodeByte(s.ID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_ID TLV: %w", err)
 	}
 	tlvs = append(tlvs, sid)
 
 	// Sensor Type
-	st, err := tlv.NewTLV(uint8(constants.SENSOR_TYPE), []byte(s.Type))
+	st, err := NewTLV(uint8(constants.SENSOR_TYPE), []byte(s.Type))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_TYPE TLV: %w", err)
 	}
 	tlvs = append(tlvs, st)
 
 	// Sensor Unit
-	su, err := tlv.NewTLV(uint8(constants.SENSOR_UNIT), []byte(s.Unit))
+	su, err := NewTLV(uint8(constants.SENSOR_UNIT), []byte(s.Unit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_UNIT TLV: %w", err)
 	}
@@ -38,14 +37,14 @@ func EncodeSensorEntry(s entity.Sensor[any]) (tlv.TLV, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode sensor value: %w", err)
 	}
-	sv, err := tlv.NewTLV(uint8(constants.SENSOR_VALUE), svTLV.Encode())
+	sv, err := NewTLV(uint8(constants.SENSOR_VALUE), svTLV.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_VALUE TLV: %w", err)
 	}
 	tlvs = append(tlvs, sv)
 
 	// Wrap all fields in SENSOR_ENTRY TLV
-	sensorEntryTLV, err := tlv.NewTLV(constants.SENSOR_ENTRY, tlv.EncodeMultipleTLVs(tlvs))
+	sensorEntryTLV, err := NewTLV(constants.SENSOR_ENTRY, EncodeMultipleTLVs(tlvs))
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +52,7 @@ func EncodeSensorEntry(s entity.Sensor[any]) (tlv.TLV, error) {
 }
 
 // DecodeSensorEntry decodes a SENSOR_ENTRY TLV into a Sensor and validates field lengths.
-func DecodeSensorEntry(t tlv.TLV) (*entity.Sensor[any], error) {
+func DecodeSensorEntry(t TLV) (*entity.Sensor[any], error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
 	}
@@ -62,7 +61,7 @@ func DecodeSensorEntry(t tlv.TLV) (*entity.Sensor[any], error) {
 		return nil, fmt.Errorf("expected SENSOR_ENTRY type, got %x", t.Type())
 	}
 
-	tlvs, err := tlv.DecodeMultipleTLVs(t.Value())
+	tlvs, err := DecodeMultipleTLVs(t.Value())
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode multiple TLVs: %w", err)
 	}
@@ -80,7 +79,7 @@ func DecodeSensorEntry(t tlv.TLV) (*entity.Sensor[any], error) {
 		case constants.SENSOR_UNIT:
 			s.Unit = string(innerTLV.Value())
 		case constants.SENSOR_VALUE:
-			valueTLV, err := tlv.DecodeTLV(innerTLV.Value())
+			valueTLV, err := DecodeTLV(innerTLV.Value())
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor value TLV: %w", err)
 			}

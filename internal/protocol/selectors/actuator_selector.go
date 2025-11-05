@@ -6,7 +6,6 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // ActuatorSelector represents different ways to select actuators.
@@ -49,32 +48,32 @@ func NewAllActuatorsSelector() *ActuatorSelector {
 
 // Encode encodes the actuator selector as TLV.
 // Returns an error for invalid configurations (e.g., empty list, missing type name).
-func (a *ActuatorSelector) Encode() (tlv.TLV, error) {
+func (a *ActuatorSelector) Encode() (encoding.TLV, error) {
 	switch a.Type {
 	case constants.SINGLE_ACTUATOR:
 		if len(a.ActuatorIDs) != 1 {
 			return nil, fmt.Errorf("SINGLE_ACTUATOR selector must have exactly one actuator ID")
 		}
-		return tlv.NewTLV(uint8(constants.SINGLE_ACTUATOR), encoding.EncodeByte(a.ActuatorIDs[0]))
+		return encoding.NewTLV(uint8(constants.SINGLE_ACTUATOR), encoding.EncodeByte(a.ActuatorIDs[0]))
 	case constants.ACTUATOR_LIST:
 		if len(a.ActuatorIDs) == 0 {
 			return nil, fmt.Errorf("ACTUATOR_LIST selector must have at least one actuator ID")
 		}
-		return tlv.NewTLV(uint8(constants.ACTUATOR_LIST), encoding.EncodeByteList(a.ActuatorIDs))
+		return encoding.NewTLV(uint8(constants.ACTUATOR_LIST), encoding.EncodeByteList(a.ActuatorIDs))
 	case constants.ACTUATOR_TYPE:
 		if a.TypeName == nil || strings.TrimSpace(*a.TypeName) == "" {
 			return nil, fmt.Errorf("ACTUATOR_TYPE selector must have a type name")
 		}
-		return tlv.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte(*a.TypeName))
+		return encoding.NewTLV(uint8(constants.ACTUATOR_TYPE), []byte(*a.TypeName))
 	case constants.ALL_ACTUATORS:
-		return tlv.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{})
+		return encoding.NewTLV(uint8(constants.ALL_ACTUATORS), []byte{})
 	default:
 		return nil, fmt.Errorf("unknown actuator selector type: %x", a.Type)
 	}
 }
 
 // DecodeActuatorSelector decodes an actuator selector from TLV and validates length rules.
-func DecodeActuatorSelector(tlv tlv.TLV) (ActuatorSelector, error) {
+func DecodeActuatorSelector(tlv encoding.TLV) (ActuatorSelector, error) {
 	switch constants.ActuatorSelector(tlv.Type()) {
 	case constants.SINGLE_ACTUATOR:
 		if tlv.Length() != 1 {

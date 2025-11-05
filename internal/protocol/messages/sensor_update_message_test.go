@@ -7,7 +7,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,7 +46,7 @@ func TestEncode_SensorUpdateMessage(t *testing.T) {
 	assert.NotNil(encoded)
 
 	sensorEntryTLV, _ := encoding.EncodeSensorEntry(sensor)
-	expectedTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), tlv.EncodeMultipleTLVs([]tlv.TLV{sensorEntryTLV}))
+	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -62,7 +61,7 @@ func TestDecode_SensorUpdateMessage(t *testing.T) {
 		Unit:  "°C",
 		Value: float32(22.5),
 	})
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), tlv.EncodeMultipleTLVs([]tlv.TLV{sensorEntryTLV}))
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorEntryTLV}))
 
 	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV)
 	assert.NoError(err)
@@ -108,9 +107,9 @@ func TestEncode_SensorUpdateMessageWithNode(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(encoded)
 
-	nodeIDTLV, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
+	nodeIDTLV, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
 	sensorEntryTLV, _ := encoding.EncodeSensorEntry(sensor)
-	expectedTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), tlv.EncodeMultipleTLVs([]tlv.TLV{nodeIDTLV, sensorEntryTLV}))
+	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV, sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -119,14 +118,14 @@ func TestEncode_SensorUpdateMessageWithNode(t *testing.T) {
 func TestDecode_SensorUpdateMessageWithNode(t *testing.T) {
 	assert := assert.New(t)
 
-	nodeIDTLV, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
+	nodeIDTLV, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
 	sensorEntryTLV, _ := encoding.EncodeSensorEntry(entity.Sensor[any]{
 		ID:    0x02,
 		Type:  "HUMIDITY",
 		Unit:  "%",
 		Value: int32(60),
 	})
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), tlv.EncodeMultipleTLVs([]tlv.TLV{nodeIDTLV, sensorEntryTLV}))
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV, sensorEntryTLV}))
 
 	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV)
 	assert.NoError(err)
@@ -149,34 +148,34 @@ func TestDecodeSensorUpdateMessage_InvalidArgument(t *testing.T) {
 	assert.Error(err)
 
 	// wrong type
-	wrongType, _ := tlv.NewTLV(uint8(constants.COMMAND), []byte{})
+	wrongType, _ := encoding.NewTLV(uint8(constants.COMMAND), []byte{})
 	_, err = messages.DecodeSensorUpdateMessage(wrongType)
 	assert.Error(err)
 
 	// missing sensor entry
-	nodeIDTLV, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
-	value := tlv.EncodeMultipleTLVs([]tlv.TLV{nodeIDTLV})
-	sensorUpdateTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UPDATE), value)
+	nodeIDTLV, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
+	value := encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV})
+	sensorUpdateTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
 	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
 	assert.Error(err)
 
 	// extra unknown TLV
-	unknownTLV, _ := tlv.NewTLV(0xFF, []byte{0x01})
-	value = tlv.EncodeMultipleTLVs([]tlv.TLV{unknownTLV})
-	sensorUpdateTLV, _ = tlv.NewTLV(uint8(constants.SENSOR_UPDATE), value)
+	unknownTLV, _ := encoding.NewTLV(0xFF, []byte{0x01})
+	value = encoding.EncodeMultipleTLVs([]encoding.TLV{unknownTLV})
+	sensorUpdateTLV, _ = encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
 	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
 	assert.Error(err)
 
 	// invalid node ID length (should be 1 byte)
-	invalidNodeIDTLV, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07, 0x08})
+	invalidNodeIDTLV, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07, 0x08})
 	sensorEntryTLV, _ := encoding.EncodeSensorEntry(entity.Sensor[any]{
 		ID:    0x01,
 		Type:  "TEMPERATURE",
 		Unit:  "°C",
 		Value: float32(22.5),
 	})
-	value = tlv.EncodeMultipleTLVs([]tlv.TLV{invalidNodeIDTLV, sensorEntryTLV})
-	sensorUpdateTLV, _ = tlv.NewTLV(uint8(constants.SENSOR_UPDATE), value)
+	value = encoding.EncodeMultipleTLVs([]encoding.TLV{invalidNodeIDTLV, sensorEntryTLV})
+	sensorUpdateTLV, _ = encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
 	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
 	assert.Error(err)
 

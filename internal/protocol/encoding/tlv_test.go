@@ -1,9 +1,9 @@
-package tlv_test
+package encoding_test
 
 import (
 	"testing"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ func TestNewTLV(t *testing.T) {
 	assert := assert.New(t)
 
 	val := []byte{0xAA, 0xBB}
-	tt, err := tlv.NewTLV(0x44, val)
+	tt, err := encoding.NewTLV(0x44, val)
 	assert.NoError(err)
 	assert.NotNil(tt)
 
@@ -28,7 +28,7 @@ func TestNewTLV(t *testing.T) {
 
 func TestEncode(t *testing.T) {
 	val := []byte{0x01, 0x02, 0x03}
-	tt, err := tlv.NewTLV(0x12, val)
+	tt, err := encoding.NewTLV(0x12, val)
 	assert.NoError(t, err)
 	encoded := tt.Encode()
 
@@ -41,7 +41,7 @@ func TestDecodeTLV(t *testing.T) {
 	assert := assert.New(t)
 
 	data := []byte{0x34, 0x00, 0x02, 0x10, 0x20}
-	got, err := tlv.DecodeTLV(data)
+	got, err := encoding.DecodeTLV(data)
 	assert.NoError(err)
 	assert.Equal(uint8(0x34), got.Type())
 	assert.Equal(uint16(2), got.Length())
@@ -53,22 +53,22 @@ func TestDecodeTLV(t *testing.T) {
 }
 
 func TestEncodeMultipleTLVs(t *testing.T) {
-	a, _ := tlv.NewTLV(0x10, []byte{0xAA})
-	b, _ := tlv.NewTLV(0x20, []byte{0xBB, 0xCC})
+	a, _ := encoding.NewTLV(0x10, []byte{0xAA})
+	b, _ := encoding.NewTLV(0x20, []byte{0xBB, 0xCC})
 	expected := append(a.Encode(), b.Encode()...)
 
-	got := tlv.EncodeMultipleTLVs([]tlv.TLV{a, b})
+	got := encoding.EncodeMultipleTLVs([]encoding.TLV{a, b})
 	assert.Equal(t, expected, got)
 }
 
 func TestDecodeMultipleTLVs(t *testing.T) {
 	assert := assert.New(t)
 
-	a, _ := tlv.NewTLV(0x01, []byte{0x11})
-	b, _ := tlv.NewTLV(0x02, []byte{0x22, 0x33})
+	a, _ := encoding.NewTLV(0x01, []byte{0x11})
+	b, _ := encoding.NewTLV(0x02, []byte{0x22, 0x33})
 	concat := append(a.Encode(), b.Encode()...)
 
-	tlvs, err := tlv.DecodeMultipleTLVs(concat)
+	tlvs, err := encoding.DecodeMultipleTLVs(concat)
 	assert.NoError(err)
 	assert.Len(tlvs, 2)
 
@@ -81,51 +81,51 @@ func TestDecodeMultipleTLVs(t *testing.T) {
 // -------------------------------------- Negative tests --------------------------------------
 
 func TestNewTLV_EmptyValue(t *testing.T) {
-	tt, err := tlv.NewTLV(0x01, nil)
+	tt, err := encoding.NewTLV(0x01, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, tt)
 
-	tt, err = tlv.NewTLV(0x01, []byte{})
+	tt, err = encoding.NewTLV(0x01, []byte{})
 	assert.NoError(t, err)
 	assert.NotNil(t, tt)
 }
 
 func TestNewTLV_TooLarge(t *testing.T) {
 	val := make([]byte, 65536)
-	tt, err := tlv.NewTLV(0x01, val)
+	tt, err := encoding.NewTLV(0x01, val)
 	assert.Error(t, err)
 	assert.Nil(t, tt)
 }
 
 func TestDecodeTLV_InvalidInput(t *testing.T) {
 	// Too short for header
-	_, err := tlv.DecodeTLV([]byte{0x01, 0x00})
+	_, err := encoding.DecodeTLV([]byte{0x01, 0x00})
 	assert.Error(t, err)
 
 	// Declared value longer than available
-	_, err = tlv.DecodeTLV([]byte{0x01, 0x00, 0x03, 0xAA})
+	_, err = encoding.DecodeTLV([]byte{0x01, 0x00, 0x03, 0xAA})
 	assert.Error(t, err)
 }
 
 func TestDecodeMultipleTLVs_TrailingBytesIgnored(t *testing.T) {
-	a, _ := tlv.NewTLV(0x01, []byte{0x11})
-	b, _ := tlv.NewTLV(0x02, []byte{0x22})
+	a, _ := encoding.NewTLV(0x01, []byte{0x11})
+	b, _ := encoding.NewTLV(0x02, []byte{0x22})
 	concat := append(a.Encode(), b.Encode()...)
 	// Add 2 trailing bytes (< header size) which should be ignored
 	concat = append(concat, 0xFF, 0xFF)
 
-	tlvs, err := tlv.DecodeMultipleTLVs(concat)
+	tlvs, err := encoding.DecodeMultipleTLVs(concat)
 	assert.NoError(t, err)
 	assert.Len(t, tlvs, 2)
 }
 
 func TestDecodeMultipleTLVs_ErrorOnSecond(t *testing.T) {
-	a, _ := tlv.NewTLV(0x01, []byte{0x11})
+	a, _ := encoding.NewTLV(0x01, []byte{0x11})
 	// Malformed second TLV: header says length=2 but only 1 value byte present
 	malformed := []byte{0x02, 0x00, 0x02, 0x22}
 	concat := append(a.Encode(), malformed...)
 
-	tlvs, err := tlv.DecodeMultipleTLVs(concat)
+	tlvs, err := encoding.DecodeMultipleTLVs(concat)
 	assert.Error(t, err)
 	assert.Nil(t, tlvs)
 }

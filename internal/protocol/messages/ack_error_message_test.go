@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +40,7 @@ func TestEncode_AckMessage(t *testing.T) {
 func TestDecode_AckMessage(t *testing.T) {
 	assert := assert.New(t)
 
-	tlvData, _ := tlv.NewTLV(uint8(constants.ACK_ERROR), append([]byte{uint8(constants.ACK_SUCCESS)}, []byte("All good")...))
+	tlvData, _ := encoding.NewTLV(uint8(constants.ACK_ERROR), append([]byte{uint8(constants.ACK_SUCCESS)}, []byte("All good")...))
 	decoded, err := messages.DecodeAckErrorMessage(tlvData)
 	assert.NoError(err)
 	assert.NotNil(decoded)
@@ -81,7 +81,7 @@ func TestEncode_ErrorMessage(t *testing.T) {
 func TestDecode_ErrorMessage(t *testing.T) {
 	assert := assert.New(t)
 
-	tlvData, _ := tlv.NewTLV(uint8(constants.ACK_ERROR), append([]byte{uint8(constants.ERR_INVALID_VALUE)}, []byte("Invalid value")...))
+	tlvData, _ := encoding.NewTLV(uint8(constants.ACK_ERROR), append([]byte{uint8(constants.ERR_INVALID_VALUE)}, []byte("Invalid value")...))
 	decoded, err := messages.DecodeAckErrorMessage(tlvData)
 	assert.NoError(err)
 	assert.NotNil(decoded)
@@ -158,17 +158,17 @@ func TestDecodeInvalidState_AckErrorMessage(t *testing.T) {
 	assert.Error(err)
 
 	// Wrong type
-	wrongType, _ := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{0xA0})
+	wrongType, _ := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{0xA0})
 	_, err = messages.DecodeAckErrorMessage(wrongType)
 	assert.Error(err)
 
 	// Empty value (no code)
-	emptyValue, _ := tlv.NewTLV(uint8(constants.ACK_ERROR), []byte{})
+	emptyValue, _ := encoding.NewTLV(uint8(constants.ACK_ERROR), []byte{})
 	_, err = messages.DecodeAckErrorMessage(emptyValue)
 	assert.Error(err)
 
 	// Invalid error code
-	invalidCode, _ := tlv.NewTLV(uint8(constants.ACK_ERROR), []byte{0xFF, 0x01, 0x02})
+	invalidCode, _ := encoding.NewTLV(uint8(constants.ACK_ERROR), []byte{0xFF, 0x01, 0x02})
 	_, err = messages.DecodeAckErrorMessage(invalidCode)
 	assert.Error(err)
 }
@@ -176,7 +176,7 @@ func TestDecodeInvalidState_AckErrorMessage(t *testing.T) {
 func TestDecodeAckErrorMessage_EmptyData(t *testing.T) {
 	assert := assert.New(t)
 
-	validNoData, _ := tlv.NewTLV(uint8(constants.ACK_ERROR), []byte{uint8(constants.ERR_INVALID_VALUE)})
+	validNoData, _ := encoding.NewTLV(uint8(constants.ACK_ERROR), []byte{uint8(constants.ERR_INVALID_VALUE)})
 	decoded, err := messages.DecodeAckErrorMessage(validNoData)
 	assert.NoError(err)
 	assert.Equal(constants.ACK_ERROR, decoded.Type())

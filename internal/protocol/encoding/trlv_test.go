@@ -1,19 +1,19 @@
-package tlv_test
+package encoding_test
 
 import (
 	"bytes"
 	"io"
 	"testing"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/stretchr/testify/assert"
 )
 
 // -------------------------------------- Positive tests --------------------------------------
 
 func TestEncodeTRLV(t *testing.T) {
-	tl, _ := tlv.NewTLV(0x10, []byte{0xDE, 0xAD, 0xBE, 0xEF})
-	trlv := tlv.TRLV{
+	tl, _ := encoding.NewTLV(0x10, []byte{0xDE, 0xAD, 0xBE, 0xEF})
+	trlv := encoding.TRLV{
 		TLV:       tl,
 		RequestID: 0x1234,
 	}
@@ -25,7 +25,7 @@ func TestEncodeTRLV(t *testing.T) {
 func TestReadTRLV(t *testing.T) {
 	data := []byte{0x20, 0x56, 0x78, 0x00, 0x03, 0xCA, 0xFE, 0xBA}
 	r := bytes.NewReader(data)
-	trlv, n, err := tlv.ReadTRLV(r)
+	trlv, n, err := encoding.ReadTRLV(r)
 	assert.NoError(t, err)
 	assert.Equal(t, 8, n)
 	assert.Equal(t, uint8(0x20), trlv.TLV.Type())
@@ -39,7 +39,7 @@ func TestReadTRLV(t *testing.T) {
 func TestReadTRLV_IncompleteHeader(t *testing.T) {
 	data := []byte{0x30, 0x00} // Incomplete header
 	r := bytes.NewReader(data)
-	trlv, n, err := tlv.ReadTRLV(r)
+	trlv, n, err := encoding.ReadTRLV(r)
 	assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
 	assert.Nil(t, trlv)
 	assert.Equal(t, 2, n)
@@ -48,7 +48,7 @@ func TestReadTRLV_IncompleteHeader(t *testing.T) {
 func TestReadTRLV_IncompleteValue(t *testing.T) {
 	data := []byte{0x40, 0x9A, 0xBC, 0x00, 0x05, 0x11, 0x22} // Incomplete value
 	r := bytes.NewReader(data)
-	trlv, n, err := tlv.ReadTRLV(r)
+	trlv, n, err := encoding.ReadTRLV(r)
 	assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
 	assert.Nil(t, trlv)
 	assert.Equal(t, 7, n)

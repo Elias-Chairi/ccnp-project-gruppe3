@@ -6,7 +6,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,11 +66,11 @@ func TestEncodeSensorEntry(t *testing.T) {
 
 			assert.Equal(uint8(constants.SENSOR_ENTRY), encoded.Type())
 
-			innerTLVs, err := tlv.DecodeMultipleTLVs(encoded.Value())
+			innerTLVs, err := encoding.DecodeMultipleTLVs(encoded.Value())
 			require.NoError(err)
 			require.Len(innerTLVs, 4)
 
-			fields := make(map[constants.SensorField]tlv.TLV)
+			fields := make(map[constants.SensorField]encoding.TLV)
 			for _, inner := range innerTLVs {
 				fields[constants.SensorField(inner.Type())] = inner
 			}
@@ -90,7 +89,7 @@ func TestEncodeSensorEntry(t *testing.T) {
 
 			valueTLV, ok := fields[constants.SENSOR_VALUE]
 			require.True(ok)
-			valueDataTLV, err := tlv.DecodeTLV(valueTLV.Value())
+			valueDataTLV, err := encoding.DecodeTLV(valueTLV.Value())
 			require.NoError(err)
 			valueData, err := encoding.DecodeAny(valueDataTLV)
 			require.NoError(err)
@@ -102,12 +101,12 @@ func TestEncodeSensorEntry(t *testing.T) {
 func TestDecodeSensorEntry(t *testing.T) {
 	for _, tt := range sensorTests {
 		t.Run(tt.name, func(t *testing.T) {
-			idTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_ID), []byte{tt.sensor.ID})
-			typeTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_TYPE), []byte(tt.sensor.Type))
-			unitTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_UNIT), []byte(tt.sensor.Unit))
+			idTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_ID), []byte{tt.sensor.ID})
+			typeTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_TYPE), []byte(tt.sensor.Type))
+			unitTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UNIT), []byte(tt.sensor.Unit))
 			valuePayload, _ := encoding.EncodeAny(tt.sensor.Value)
-			valueTLV, _ := tlv.NewTLV(uint8(constants.SENSOR_VALUE), valuePayload.Encode())
-			entryTLV, _ := tlv.NewTLV(constants.SENSOR_ENTRY, tlv.EncodeMultipleTLVs([]tlv.TLV{idTLV, typeTLV, unitTLV, valueTLV}))
+			valueTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_VALUE), valuePayload.Encode())
+			entryTLV, _ := encoding.NewTLV(constants.SENSOR_ENTRY, encoding.EncodeMultipleTLVs([]encoding.TLV{idTLV, typeTLV, unitTLV, valueTLV}))
 
 			decoded, err := encoding.DecodeSensorEntry(entryTLV)
 			require.NoError(t, err)
@@ -140,7 +139,7 @@ func TestDecodeSensorEntry_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// wrong type
-	wrongType, _ := tlv.NewTLV(uint8(constants.ACTUATOR_ENTRY), []byte{0x01})
+	wrongType, _ := encoding.NewTLV(uint8(constants.ACTUATOR_ENTRY), []byte{0x01})
 	_, err = encoding.DecodeSensorEntry(wrongType)
 	assert.Error(t, err)
 }

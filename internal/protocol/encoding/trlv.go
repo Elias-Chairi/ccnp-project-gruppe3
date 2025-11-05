@@ -1,4 +1,4 @@
-package tlv
+package encoding
 
 import (
 	"encoding/binary"

@@ -5,29 +5,28 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // EncodeActuatorEntry encodes an actuator into an ACTUATOR_ENTRY TLV with nested fields.
-func EncodeActuatorEntry(a entity.Actuator[any]) (tlv.TLV, error) {
-	var tlvs []tlv.TLV
+func EncodeActuatorEntry(a entity.Actuator[any]) (TLV, error) {
+	var tlvs []TLV
 
 	// Actuator ID
-	aid, err := tlv.NewTLV(uint8(constants.ACTUATOR_ID), EncodeByte(a.ID))
+	aid, err := NewTLV(uint8(constants.ACTUATOR_ID), EncodeByte(a.ID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACTUATOR_ID TLV: %w", err)
 	}
 	tlvs = append(tlvs, aid)
 
 	// Actuator Type
-	at, err := tlv.NewTLV(uint8(constants.ACTUATOR_TYPE_FIELD), []byte(a.Type))
+	at, err := NewTLV(uint8(constants.ACTUATOR_TYPE_FIELD), []byte(a.Type))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACTUATOR_TYPE TLV: %w", err)
 	}
 	tlvs = append(tlvs, at)
 
 	// Actuator Unit
-	au, err := tlv.NewTLV(uint8(constants.ACTUATOR_UNIT), []byte(a.Unit))
+	au, err := NewTLV(uint8(constants.ACTUATOR_UNIT), []byte(a.Unit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACTUATOR_UNIT TLV: %w", err)
 	}
@@ -38,14 +37,14 @@ func EncodeActuatorEntry(a entity.Actuator[any]) (tlv.TLV, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode actuator state: %w", err)
 	}
-	as, err := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), stateTLV.Encode())
+	as, err := NewTLV(uint8(constants.ACTUATOR_STATE), stateTLV.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACTUATOR_STATE TLV: %w", err)
 	}
 	tlvs = append(tlvs, as)
 
 	// Wrap all fields in ACTUATOR_ENTRY TLV
-	tlv, err := tlv.NewTLV(uint8(constants.ACTUATOR_ENTRY), tlv.EncodeMultipleTLVs(tlvs))
+	tlv, err := NewTLV(uint8(constants.ACTUATOR_ENTRY), EncodeMultipleTLVs(tlvs))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACTUATOR_ENTRY TLV: %w", err)
 	}
@@ -53,7 +52,7 @@ func EncodeActuatorEntry(a entity.Actuator[any]) (tlv.TLV, error) {
 }
 
 // DecodeActuatorEntry decodes an ACTUATOR_ENTRY TLV into an Actuator and validates field lengths.
-func DecodeActuatorEntry(t tlv.TLV) (*entity.Actuator[any], error) {
+func DecodeActuatorEntry(t TLV) (*entity.Actuator[any], error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
 	}
@@ -62,7 +61,7 @@ func DecodeActuatorEntry(t tlv.TLV) (*entity.Actuator[any], error) {
 		return nil, fmt.Errorf("expected ACTUATOR_ENTRY type, got %x", t.Type())
 	}
 
-	tlvs, err := tlv.DecodeMultipleTLVs(t.Value())
+	tlvs, err := DecodeMultipleTLVs(t.Value())
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode multiple TLVs: %w", err)
 	}
@@ -80,7 +79,7 @@ func DecodeActuatorEntry(t tlv.TLV) (*entity.Actuator[any], error) {
 		case constants.ACTUATOR_UNIT:
 			a.Unit = string(innerTLV.Value())
 		case constants.ACTUATOR_STATE:
-			stateTLV, err := tlv.DecodeTLV(innerTLV.Value())
+			stateTLV, err := DecodeTLV(innerTLV.Value())
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode actuator state TLV: %w", err)
 			}

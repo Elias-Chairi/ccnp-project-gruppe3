@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 var tcpServiceAddress = net.TCPAddr{
@@ -55,12 +55,12 @@ func StartTCPService() {
 }
 
 // readNextTRLV reads the next TRLV from the connection.
-func readNextTRLV(conn net.Conn) (*tlv.TRLV, error) {
+func readNextTRLV(conn net.Conn) (*encoding.TRLV, error) {
 	for {
 		// dosent make sense to read forever since if the recived data is too far apart in time
 		// it is not likely that they belong to the same message or that the client is dead.
 		conn.SetReadDeadline(time.Now().Add(readDeadline))
-		trlv, n, err := tlv.ReadTRLV(conn)
+		trlv, n, err := encoding.ReadTRLV(conn)
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) && n == 0 {
 				// timeout occurred without reading any data, continue reading holding the connection open indefinitely
@@ -113,7 +113,7 @@ func handleRegistration(conn net.Conn) error {
 }
 
 // ConnHandler is a function that handles a TLV received from a connection.
-type ConnHandler func(t tlv.TLV) (constants.AckErrorCode, error)
+type ConnHandler func(t encoding.TLV) (constants.AckErrorCode, error)
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
@@ -129,7 +129,7 @@ func handleConn(conn net.Conn, f ConnHandler) {
 				continue // ignore other read errors
 			}
 		}
-		t, err := tlv.DecodeTLV(buf[:n])
+		t, err := encoding.DecodeTLV(buf[:n])
 		if err != nil {
 			sendError(conn, constants.ERR_MALFORMED_MESSAGE)
 			continue // ignore malformed TLVs

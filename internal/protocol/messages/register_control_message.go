@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
 
 // registerControlMessage represents a REGISTER_CONTROL message (Type REGISTER_CONTROL).
@@ -20,7 +20,7 @@ func NewRegisterControlMessage() *registerControlMessage {
 
 // Encode encodes the REGISTER_CONTROL message to bytes.
 func (m *registerControlMessage) Encode() ([]byte, error) {
-	tlv, err := tlv.NewTLV(uint8(constants.REGISTER_CONTROL), []byte{})
+	tlv, err := encoding.NewTLV(uint8(constants.REGISTER_CONTROL), []byte{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create REGISTER_CONTROL TLV: %w", err)
 	}
@@ -34,7 +34,7 @@ func (m *registerControlMessage) Type() constants.MessageType {
 
 // DecodeRegisterControlMessage decodes a REGISTER_CONTROL message from TLV.
 // Validates type (REGISTER_CONTROL) and that length is zero.
-func DecodeRegisterControlMessage(tlv tlv.TLV) (registerControlMessage, error) {
+func DecodeRegisterControlMessage(tlv encoding.TLV) (registerControlMessage, error) {
 	if tlv == nil {
 		return registerControlMessage{}, fmt.Errorf("nil TLV provided")
 	}

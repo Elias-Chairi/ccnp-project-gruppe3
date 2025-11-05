@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
 
-var handleControlPanel ConnHandler = func(t tlv.TLV) (constants.AckErrorCode, error) {
+var handleControlPanel ConnHandler = func(t encoding.TLV) (constants.AckErrorCode, error) {
 	switch t.Type() {
 	case uint8(constants.COMMAND):
 		// todo: handle command
