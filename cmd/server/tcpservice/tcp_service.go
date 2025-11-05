@@ -30,8 +30,6 @@ func StartTCPService() {
 
 	log.Printf("Listening on: %s\n", listner.Addr())
 
-	// connChan := make(chan net.Conn)
-
 	for {
 		conn, err := listner.Accept()
 		if err != nil {
@@ -93,10 +91,13 @@ func handleRegistration(conn net.Conn) error {
 	return nil
 }
 
+// ConnHandler is a function that handles a TLV received from a connection.
+type ConnHandler func(t tlv.TLV) error
+
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
 // Read loop continues until the connection is closed.
-func handleConn(conn net.Conn, f func(t tlv.TLV) error) {
+func handleConn(conn net.Conn, f ConnHandler) {
 	buf := make([]byte, 1024)
 	for {
 		n, err := conn.Read(buf)
@@ -114,33 +115,6 @@ func handleConn(conn net.Conn, f func(t tlv.TLV) error) {
 		err = f(t)
 		if err != nil {
 			// todo: reply to client with error message
-
-		}
-	}
-}
-
-func handleNode(t tlv.TLV) error {
-	switch t.Type() {
-	case uint8(constants.SENSOR_UPDATE):
-		// todo: handle sensor update
-		return nil
-	case uint8(constants.ACK_ERROR):
-		// todo: handle ack error
-		return nil
-	default:
-		return fmt.Errorf("invalid type %v for node handler", t.Type())
-	}
-}
-
-func handleControlPanel(t tlv.TLV) error {
-	switch t.Type() {
-	case uint8(constants.COMMAND):
-		// todo: handle command
-		return nil
-	case uint8(constants.ACK_ERROR):
-		// todo: handle ack error
-		return nil
-	default:
-		return fmt.Errorf("invalid type %v for control panel handler", t.Type())
+		} // todo(maybe): else ack success
 	}
 }
