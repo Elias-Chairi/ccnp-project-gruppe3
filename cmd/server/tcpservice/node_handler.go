@@ -7,15 +7,15 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-func handleNode(t tlv.TLV) error {
+var handleNode ConnHandler = func(t tlv.TLV) (constants.AckErrorCode, error) {
 	switch t.Type() {
 	case uint8(constants.SENSOR_UPDATE):
 		// todo: handle sensor update
-		return nil
+		return constants.ACK_SUCCESS, nil
 	case uint8(constants.ACK_ERROR):
 		// todo: handle ack error
-		return nil
+		return constants.ACK_SUCCESS, nil
 	default:
-		return fmt.Errorf("invalid type %v for node handler", t.Type())
+		return constants.ERR_INVALID_MESSAGE_TYPE, fmt.Errorf("invalid type %v for node handler", t.Type())
 	}
 }

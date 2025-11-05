@@ -7,15 +7,12 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
-func handleControlPanel(t tlv.TLV) error {
+var handleControlPanel ConnHandler = func(t tlv.TLV) (constants.AckErrorCode, error) {
 	switch t.Type() {
 	case uint8(constants.COMMAND):
 		// todo: handle command
-		return nil
-	case uint8(constants.ACK_ERROR):
-		// todo: handle ack error
-		return nil
+		return constants.ACK_SUCCESS, nil
 	default:
-		return fmt.Errorf("invalid type %v for control panel handler", t.Type())
+		return constants.ERR_INVALID_MESSAGE_TYPE, fmt.Errorf("invalid type %v for control panel handler", t.Type())
 	}
 }

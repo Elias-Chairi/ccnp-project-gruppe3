@@ -92,7 +92,7 @@ func handleRegistration(conn net.Conn) error {
 }
 
 // ConnHandler is a function that handles a TLV received from a connection.
-type ConnHandler func(t tlv.TLV) error
+type ConnHandler func(t tlv.TLV) (constants.AckErrorCode, error)
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
@@ -110,11 +110,33 @@ func handleConn(conn net.Conn, f ConnHandler) {
 		}
 		t, err := tlv.DecodeTLV(buf[:n])
 		if err != nil {
-			// todo: reply to client with error message
+			sendError(conn, constants.ERR_MALFORMED_MESSAGE)
 		}
-		err = f(t)
-		if err != nil {
-			// todo: reply to client with error message
-		} // todo(maybe): else ack success
+		if code, err := f(t); err != nil || code != constants.ACK_SUCCESS {
+			sendError(conn, code)
+		} else {
+			sendAck(conn)
+		}
 	}
+}
+
+func sendError(conn net.Conn, code constants.AckErrorCode) {
+	ackErrMsg, err := messages.NewErrorMessage(code, nil)
+	if err != nil {
+		return
+	}
+	encodedMsg, err := ackErrMsg.Encode()
+	if err != nil {
+		return
+	}
+	_, _ = conn.Write(encodedMsg)
+}
+
+func sendAck(conn net.Conn) {
+	ackMsg := messages.NewAckMessage(nil)
+	encodedMsg, err := ackMsg.Encode()
+	if err != nil {
+		return
+	}
+	_, _ = conn.Write(encodedMsg)
 }
