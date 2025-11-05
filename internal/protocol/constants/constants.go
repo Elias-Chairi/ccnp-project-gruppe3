@@ -116,17 +116,19 @@ func (d DataType) IsValid() bool {
 type AckErrorCode uint8
 
 const (
-	ACK_SUCCESS             AckErrorCode = 0xA0
-	ERR_UNKNOWN_NODE_ID     AckErrorCode = 0xA1
-	ERR_UNKNOWN_SENSOR_ID   AckErrorCode = 0xA2
-	ERR_UNKNOWN_ACTUATOR_ID AckErrorCode = 0xA3
-	ERR_INVALID_ACTION      AckErrorCode = 0xA4
-	ERR_INVALID_VALUE       AckErrorCode = 0xA5
+	ACK_SUCCESS              AckErrorCode = 0xA0
+	ERR_UNKNOWN_NODE_ID      AckErrorCode = 0xA1
+	ERR_UNKNOWN_SENSOR_ID    AckErrorCode = 0xA2
+	ERR_UNKNOWN_ACTUATOR_ID  AckErrorCode = 0xA3
+	ERR_INVALID_ACTION       AckErrorCode = 0xA4
+	ERR_INVALID_VALUE        AckErrorCode = 0xA5
+	ERR_MALFORMED_MESSAGE    AckErrorCode = 0xA6
+	ERR_INVALID_MESSAGE_TYPE AckErrorCode = 0xA7
 )
 
 func (c AckErrorCode) IsValid() bool {
 	switch c {
-	case ACK_SUCCESS, ERR_UNKNOWN_NODE_ID, ERR_UNKNOWN_SENSOR_ID, ERR_UNKNOWN_ACTUATOR_ID, ERR_INVALID_ACTION, ERR_INVALID_VALUE:
+	case ACK_SUCCESS, ERR_UNKNOWN_NODE_ID, ERR_UNKNOWN_SENSOR_ID, ERR_UNKNOWN_ACTUATOR_ID, ERR_INVALID_ACTION, ERR_INVALID_VALUE, ERR_MALFORMED_MESSAGE, ERR_INVALID_MESSAGE_TYPE:
 		return true
 	default:
 		return false
