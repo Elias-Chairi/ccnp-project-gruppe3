@@ -62,7 +62,7 @@ func processRequest(data []byte, src *net.UDPAddr) {
 	}
 
 	// create ack message
-	msg := messages.NewAckMessage(nil)
+	msg := messages.AckSuccessMessage()
 	encodedMsg, err := msg.Encode()
 	if err != nil {
 		log.Printf("error encoding ACK message: %v", err)

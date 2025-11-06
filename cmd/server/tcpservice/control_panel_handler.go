@@ -1,18 +1,19 @@
 package tcpservice
 
 import (
-	"fmt"
-
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var handleControlPanel ConnHandler = func(t encoding.TLV) (constants.AckErrorCode, error) {
-	switch t.Type() {
+var handleControlPanel messageHandler = func(t *encoding.TRLV) messages.AckErrorMessage {
+	switch t.TLV.Type() {
 	case uint8(constants.COMMAND):
 		// todo: handle command
-		return constants.ACK_SUCCESS, nil
+		return messages.AckSuccessMessage()
 	default:
-		return constants.ERR_INVALID_MESSAGE_TYPE, fmt.Errorf("invalid type %v for control panel handler", t.Type())
+		return messages.AckErrorMessage{
+			Code: constants.ERR_INVALID_MESSAGE_TYPE,
+		}
 	}
 }

@@ -44,7 +44,7 @@ func StartTCPService() {
 		go func() {
 			log.Println("New connection from:", conn.RemoteAddr())
 			if err := handleRegistration(conn); err != nil {
-				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				if isConnClosedErr(err) {
 					log.Println("Connection closed by client:", conn.RemoteAddr())
 				} else {
 					log.Println("Connection closed with unrecoverable error from", conn.RemoteAddr(), ":", err)
@@ -52,6 +52,11 @@ func StartTCPService() {
 			}
 		}()
 	}
+}
+
+// isConnClosedErr checks if the error indicates that the connection has been closed by the client.
+func isConnClosedErr(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 // readNextTRLV reads the next TRLV from the connection.
@@ -97,68 +102,50 @@ func handleRegistration(conn net.Conn) error {
 		}
 		// todo: reply with assigned node ID
 		// todo: send new node to control panel(s)
-		handleConn(conn, handleNode)
+		return handleConn(conn, handleNode)
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(trlv.TLV)
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
 		// todo: reply with current node list
-		handleConn(conn, handleControlPanel)
+		return handleConn(conn, handleControlPanel)
 	default:
 		return fmt.Errorf("invalid registration type %v", trlv.TLV.Type())
 	}
-
-	return nil
 }
 
-// ConnHandler is a function that handles a TLV received from a connection.
-type ConnHandler func(t encoding.TLV) (constants.AckErrorCode, error)
+// messageHandler is a function that handles a single top-level TRLV message from a connection.
+type messageHandler func(topLevelMessage *encoding.TRLV) messages.AckErrorMessage
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
 // Read loop continues until the connection is closed.
-func handleConn(conn net.Conn, f ConnHandler) {
-	buf := make([]byte, 1024)
+func handleConn(conn net.Conn, f messageHandler) error {
 	for {
-		n, err := conn.Read(buf)
+		t, err := readNextTRLV(conn)
 		if err != nil {
-			if err == io.EOF {
-				return // connection closed by client
-			} else {
-				continue // ignore other read errors
+			if !isConnClosedErr(err) {
+				sendResponse(conn, messages.AckErrorMessage{
+					Code: constants.ERR_MALFORMED_MESSAGE,
+				})
 			}
+			return err
 		}
-		t, err := encoding.DecodeTLV(buf[:n])
-		if err != nil {
-			sendError(conn, constants.ERR_MALFORMED_MESSAGE)
-			continue // ignore malformed TLVs
-		}
-		if code, err := f(t); err != nil || code != constants.ACK_SUCCESS {
-			sendError(conn, code)
-		} else {
-			sendAck(conn)
-		}
+		ackErr := f(t)
+		_ = sendResponse(conn, ackErr) // ignoring error sending response
 	}
 }
 
-func sendError(conn net.Conn, code constants.AckErrorCode) {
-	ackErrMsg, err := messages.NewErrorMessage(code, nil)
+// sendResponse encodes and sends an AckErrorMessage response over the connection.
+func sendResponse(conn net.Conn, message messages.AckErrorMessage) error {
+	encodedMsg, err := message.Encode()
 	if err != nil {
-		return
+		return fmt.Errorf("failed to encode response message: %w", err)
 	}
-	encodedMsg, err := ackErrMsg.Encode()
+	_, err = conn.Write(encodedMsg)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to send response message: %w", err)
 	}
-	_, _ = conn.Write(encodedMsg)
-}
-
-func sendAck(conn net.Conn) {
-	ackMsg := messages.NewAckMessage(nil)
-	encodedMsg, err := ackMsg.Encode()
-	if err != nil {
-		return
-	}
-	_, _ = conn.Write(encodedMsg)
+	return nil
 }
