@@ -42,9 +42,9 @@ func ReadTRLV(r io.Reader) (*TRLV, int, error) {
 
 	length := binary.BigEndian.Uint16(header[3:5])
 	value := make([]byte, length)
-	n, err = io.ReadFull(r, value) // expecting Value(length)
+	m, err := io.ReadFull(r, value) // expecting Value(length)
 	if err != nil {
-		return nil, n + 5, fmt.Errorf("error reading TRLV value: %w", err)
+		return nil, m + 5, fmt.Errorf("error reading TRLV value: %w", err)
 	}
 
 	return &TRLV{
@@ -54,5 +54,5 @@ func ReadTRLV(r io.Reader) (*TRLV, int, error) {
 			value:   value,
 		},
 		RequestID: binary.BigEndian.Uint16(header[1:3]),
-	}, n + 5, nil
+	}, m + 5, nil
 }
