@@ -64,7 +64,10 @@ func readNextTRLV(conn net.Conn) (*encoding.TRLV, error) {
 	for {
 		// dosent make sense to read forever since if the recived data is too far apart in time
 		// it is not likely that they belong to the same message or that the client is dead.
-		conn.SetReadDeadline(time.Now().Add(readDeadline))
+		err := conn.SetReadDeadline(time.Now().Add(readDeadline))
+		if err != nil {
+			return nil, fmt.Errorf("error setting read deadline: %w", err)
+		}
 		trlv, n, err := encoding.ReadTRLV(conn)
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) && n == 0 {
@@ -126,14 +129,13 @@ func handleConn(conn net.Conn, f messageHandler) error {
 		t, err := readNextTRLV(conn)
 		if err != nil {
 			if !isConnClosedErr(err) {
-				sendResponse(conn, messages.AckErrorMessage{
+				_ = sendResponse(conn, messages.AckErrorMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
 			return err
 		}
-		ackErr := f(t)
-		_ = sendResponse(conn, ackErr) // ignoring error sending response
+		_ = sendResponse(conn, f(t)) // ignoring error sending response
 	}
 }
 
