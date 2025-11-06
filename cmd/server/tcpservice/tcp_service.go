@@ -62,7 +62,7 @@ func isConnClosedErr(err error) bool {
 // readNextTRLV reads the next TRLV from the connection.
 func readNextTRLV(conn net.Conn) (*encoding.TRLV, error) {
 	for {
-		// dosent make sense to read forever since if the recived data is too far apart in time
+		// doesn't make sense to read forever since if the received data is too far apart in time
 		// it is not likely that they belong to the same message or that the client is dead.
 		err := conn.SetReadDeadline(time.Now().Add(readDeadline))
 		if err != nil {
