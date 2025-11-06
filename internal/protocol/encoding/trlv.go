@@ -29,7 +29,7 @@ func (t TRLV) Encode() []byte {
 
 // ReadTRLV reads a TRLV from the given reader.
 //
-// It first reads until it has recived the full header (5 bytes),
+// It first reads until it has received the full header (5 bytes),
 // then reads until the full value is received based on the length field in the header.
 //
 // Returns the TRLV, number of bytes read, and an error if any.
