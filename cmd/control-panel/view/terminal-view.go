@@ -36,7 +36,7 @@ const (
 
 
 type model struct {
-    state    viewState
+    stateStack    []viewState
     message  string
     choices  []string
     cursor   int
@@ -45,17 +45,24 @@ type model struct {
 	selectedNode int
 }
 
+//hjelpefunksjon for viewState som stack
+func (m *model) currentState() viewState {
+    return m.stateStack[len(m.stateStack)-1]
+}
+
+
 
 func initialModel(nodes []entity.Node) tea.Model {
-    return model{
-        state:    mainMenu,
-        message:  "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
-        choices:  []string{"Manage Greenhouses", "Exit"},
-        selected: make(map[int]struct{}),
-        nodes:    &nodes,
-		selectedNode: 0,
+    return &model{
+        stateStack: []viewState{mainMenu},
+        message:    "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
+        choices:    []string{"Manage Greenhouses", "Exit"},
+        selected:   make(map[int]struct{}),
+        nodes:      &nodes,
+        selectedNode: 0,
     }
 }
+
 
 
 
@@ -63,7 +70,7 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	// Is it a key press?
@@ -85,10 +92,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The "down" and "s" keys move the cursor down
 		case "down", "s", "j":
 			limit := 0
-			switch m.state {
+			switch m.currentState() {
 			case actuatorView:
+				if m.selectedNode < len(*m.nodes) {
 					node := (*m.nodes)[m.selectedNode]
 					limit = len(node.Actuators)
+				}
 			default:
 				limit = len(m.choices)
 			}
@@ -97,77 +106,72 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 
-		case "left", "backspace", "a", "h": // ← Backspace go back
-			switch m.state {
-			case greenhouseList:
-				m.state = mainMenu
-				m.choices = []string{"Manage Greenhouses", "Exit"}
-				m.cursor = 0
-				m.message = "Returned to main menu."
-			case connectedMenu:
-				m.state = greenhouseList
-				m.choices = make([]string, len(*m.nodes))
-				for i := range *m.nodes {
-					m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-				}
-				m.cursor = 0
-				m.message = "Returned to greenhouse list."
+		case "left", "backspace", "a", "h":
+			if len(m.stateStack) > 1 {
+				// Pop current state
+				m.stateStack = m.stateStack[:len(m.stateStack)-1]
 
-			case sensorView, actuatorView:
-				m.state = connectedMenu
-				m.choices = []string{
-					"View Sensor Data",
-					"View/Change Actuator Status",
+			// Refresh menu according to the new current state
+			switch m.currentState() {
+				case mainMenu:
+					m.choices = []string{"Manage Greenhouses", "Exit"}
+					m.message = "Returned to main menu."
+					m.cursor = 0
+
+				case greenhouseList:
+					m.choices = make([]string, len(*m.nodes))
+					for i := range *m.nodes {
+						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+					}
+					m.message = "Returned to greenhouse list."
+					m.cursor = 0
+
+				case connectedMenu:
+					m.choices = []string{
+						"View Sensor Data",
+						"View/Change Actuator Status",
+					}
+					m.message = "Returned to connected menu."
+					m.cursor = 0
 				}
-				m.cursor = 0
-				m.message = "Returned to connected menu."
-			}	
+			}
+	
 
 		case "right", "enter", "d", "l":
-			switch m.state {
+			switch m.currentState() {
 			case mainMenu:
 				switch m.cursor {
 				case 0:
 					// Go to greenhouse list
 
-				m.state = greenhouseList
-				m.choices = make([]string, len(*m.nodes))
-				for i := range *m.nodes {
-					m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-				}
-				m.cursor = 0
-				m.message = "Returned to greenhouse list."
+					m.stateStack = append(m.stateStack, greenhouseList)
+					m.choices = make([]string, len(*m.nodes))
+					for i := range *m.nodes {
+						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+					}
+					m.cursor = 0
+					m.message = "Viewing list of available greenhouses."
 				default:
 					return m, tea.Quit
 				}
 
 
 			case greenhouseList:
-				switch m.cursor {
-				case 0, 1, 2:
-					
-					if m.cursor >= len(*m.nodes) {
-						m.message = fmt.Sprintf("greenhouse %c not available.", 'A'+m.cursor)
-						return m, nil
-					}
-				
-					m.state = connectedMenu
+				if m.cursor < len(*m.nodes) {
 					m.selectedNode = m.cursor
-					m.choices = []string{
-						"View Sensor Data",
-						"View/Change Actuator Status",
-					}
+					m.stateStack = append(m.stateStack, connectedMenu)
+					m.choices = []string{"View Sensor Data", "View/Change Actuator Status"}
 					m.cursor = 0
-					m.message = fmt.Sprintf("Connected to: Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
+					m.message = fmt.Sprintf("Connected to Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
 				}
 
 			case connectedMenu:
 				switch m.cursor {
 				case 0:
-					m.state = sensorView
+					m.stateStack = append(m.stateStack, sensorView)
 					m.message = "Displaying sensor data"
 				case 1:
-					m.state = actuatorView
+					m.stateStack = append(m.stateStack, actuatorView)
 					m.cursor = 0
 					m.message = "Displaying actuator status"
 				}
@@ -209,29 +213,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // This function is responsible for rendering the different views based on the current state.
-func (m model) View() string {
-	style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#0d4928ff"))
+func (m *model) View() string {
+    current := m.currentState()
 
-	switch m.state {
-
-	case mainMenu:
-		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
-
-	case greenhouseList:
-		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
-
-	case connectedMenu:
-		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
-
-	case sensorView:
-    	return renderSensorView(*m.nodes, m.selectedNode)
-	case actuatorView:
-    	return renderActuatorView(m)
-
-
-	default:
-		return style.Render("Unknown state")
-	}
+    switch current {
+    case mainMenu:
+        return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
+    case greenhouseList:
+        return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
+    case connectedMenu:
+        return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
+    case sensorView:
+        return renderSensorView(*m.nodes, m.selectedNode)
+    case actuatorView:
+        return renderActuatorView(*m)
+    default:
+        return "Unknown state"
+    }
 }
 
 
