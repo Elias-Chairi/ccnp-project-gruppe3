@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -36,7 +37,7 @@ const (
 
 
 type model struct {
-    stateStack    []viewState
+    viewState    viewState
     message  string
     choices  []string
     cursor   int
@@ -45,16 +46,11 @@ type model struct {
 	selectedNode int
 }
 
-//hjelpefunksjon for viewState som stack
-func (m *model) currentState() viewState {
-    return m.stateStack[len(m.stateStack)-1]
-}
-
-
+var modelStack util.Stack[model]
 
 func initialModel(nodes []entity.Node) tea.Model {
-    return &model{
-        stateStack: []viewState{mainMenu},
+    return model{
+        viewState: mainMenu,
         message:    "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
         choices:    []string{"Manage Greenhouses", "Exit"},
         selected:   make(map[int]struct{}),
@@ -66,11 +62,13 @@ func initialModel(nodes []entity.Node) tea.Model {
 
 
 
+
 func (m model) Init() tea.Cmd {
+	modelStack.Push(m)
 	return nil
 }
 
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	// Is it a key press?
@@ -92,7 +90,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The "down" and "s" keys move the cursor down
 		case "down", "s", "j":
 			limit := 0
-			switch m.currentState() {
+			switch m.viewState {
 			case actuatorView:
 				if m.selectedNode < len(*m.nodes) {
 					node := (*m.nodes)[m.selectedNode]
@@ -107,76 +105,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 
 		case "left", "backspace", "a", "h":
-			if len(m.stateStack) > 1 {
-				// Pop current state
-				m.stateStack = m.stateStack[:len(m.stateStack)-1]
+		if m.viewState != mainMenu {
+			m = modelStack.Pop()
+		}
 
-			// Refresh menu according to the new current state
-			switch m.currentState() {
-				case mainMenu:
-					m.choices = []string{"Manage Greenhouses", "Exit"}
-					m.message = "Returned to main menu."
-					m.cursor = 0
-
-				case greenhouseList:
-					m.choices = make([]string, len(*m.nodes))
-					for i := range *m.nodes {
-						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-					}
-					m.message = "Returned to greenhouse list."
-					m.cursor = 0
-
-				case connectedMenu:
-					m.choices = []string{
-						"View Sensor Data",
-						"View/Change Actuator Status",
-					}
-					m.message = "Returned to connected menu."
-					m.cursor = 0
-				}
-			}
-	
-
-		case "right", "enter", "d", "l":
-			switch m.currentState() {
-			case mainMenu:
-				switch m.cursor {
-				case 0:
-					// Go to greenhouse list
-
-					m.stateStack = append(m.stateStack, greenhouseList)
-					m.choices = make([]string, len(*m.nodes))
-					for i := range *m.nodes {
-						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-					}
-					m.cursor = 0
-					m.message = "Viewing list of available greenhouses."
-				default:
-					return m, tea.Quit
-				}
-
-
-			case greenhouseList:
-				if m.cursor < len(*m.nodes) {
-					m.selectedNode = m.cursor
-					m.stateStack = append(m.stateStack, connectedMenu)
-					m.choices = []string{"View Sensor Data", "View/Change Actuator Status"}
-					m.cursor = 0
-					m.message = fmt.Sprintf("Connected to Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
-				}
-
-			case connectedMenu:
-				switch m.cursor {
-				case 0:
-					m.stateStack = append(m.stateStack, sensorView)
-					m.message = "Displaying sensor data"
-				case 1:
-					m.stateStack = append(m.stateStack, actuatorView)
-					m.cursor = 0
-					m.message = "Displaying actuator status"
-				}
-
-			case actuatorView:
+		case "enter", "space":
+			switch m.viewState {
+				case actuatorView:
 				// Toggle ON/OFF for the selected actuator
 				if len(*m.nodes) > m.selectedNode {
 					acts := (*m.nodes)[m.selectedNode].Actuators
@@ -204,8 +139,53 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.message = fmt.Sprintf("Greenhouse %c does not exist.", 'A'+m.selectedNode)
 				}
 			}
+
+		case "right", "d", "l":
+			if m.viewState != actuatorView && m.viewState != sensorView {
+				modelStack.Push(m)
+			}
+			switch m.viewState {
+			case mainMenu:
+				switch m.cursor {
+				case 0:
+					// Go to greenhouse list
+
+					m.viewState = greenhouseList
+					m.choices = make([]string, len(*m.nodes))
+					for i := range *m.nodes {
+						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+					}
+					m.cursor = 0
+					m.message = "Viewing list of available greenhouses."
+				default:
+					return m, tea.Quit
+				}
+
+
+			case greenhouseList:
+				if m.cursor < len(*m.nodes) {
+					m.selectedNode = m.cursor
+					m.viewState = connectedMenu
+					m.choices = []string{"View Sensor Data", "View/Change Actuator Status"}
+					m.cursor = 0
+					m.message = fmt.Sprintf("Connected to Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
+				}
+
+			case connectedMenu:
+				switch m.cursor {
+				case 0:
+					m.viewState = sensorView
+					m.message = "Displaying sensor data"
+				case 1:
+					m.viewState = actuatorView
+					m.cursor = 0
+					m.message = "Displaying actuator status"
+				}
+			}
 		}
 	}
+
+
 
 	// Return the updated model to the Bubble Tea runtime for processing.
 	// Note that we're not returning a command.
@@ -213,10 +193,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // This function is responsible for rendering the different views based on the current state.
-func (m *model) View() string {
-    current := m.currentState()
+func (m model) View() string {
 
-    switch current {
+    switch m.viewState {
     case mainMenu:
         return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
     case greenhouseList:
@@ -226,7 +205,7 @@ func (m *model) View() string {
     case sensorView:
         return renderSensorView(*m.nodes, m.selectedNode)
     case actuatorView:
-        return renderActuatorView(*m)
+        return renderActuatorView(m)
     default:
         return "Unknown state"
     }
