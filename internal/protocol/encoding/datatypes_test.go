@@ -6,7 +6,6 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +32,7 @@ func TestEncodeInteger(t *testing.T) {
 
 func TestDecodeInteger(t *testing.T) {
 	for expected, bytes := range integerDecimalBytes {
-		encoded, _ := tlv.NewTLV(uint8(constants.DATA_TYPE_INTEGER), bytes)
+		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_INTEGER), bytes)
 		tlvData, err := encoding.DecodeInteger(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
@@ -60,7 +59,7 @@ func TestEncodeFloat(t *testing.T) {
 
 func TestDecodeFloat(t *testing.T) {
 	for expected, bytes := range floatDecimalBytes {
-		encoded, _ := tlv.NewTLV(uint8(constants.DATA_TYPE_FLOAT), bytes)
+		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_FLOAT), bytes)
 		tlvData, err := encoding.DecodeFloat(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
@@ -85,7 +84,7 @@ func TestEncodeString(t *testing.T) {
 
 func TestDecodeString(t *testing.T) {
 	for expected, bytes := range stringBytes {
-		encoded, _ := tlv.NewTLV(uint8(constants.DATA_TYPE_STRING), bytes)
+		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_STRING), bytes)
 		tlvData, err := encoding.DecodeString(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
@@ -109,7 +108,7 @@ func TestEncodeBoolean(t *testing.T) {
 
 func TestDecodeBoolean(t *testing.T) {
 	for expected, bytes := range booleanBytes {
-		encoded, _ := tlv.NewTLV(uint8(constants.DATA_TYPE_BOOLEAN), bytes)
+		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_BOOLEAN), bytes)
 		tlvData, err := encoding.DecodeBoolean(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
@@ -140,7 +139,7 @@ func TestEncodeAny(t *testing.T) {
 
 func TestDecodeAny(t *testing.T) {
 	for _, val := range anyBytes {
-		encoded, _ := tlv.NewTLV(val.dataType, val.bytes)
+		encoded, _ := encoding.NewTLV(val.dataType, val.bytes)
 		decoded, err := encoding.DecodeAny(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, val.value, decoded)
@@ -167,12 +166,12 @@ func TestDecodeInteger_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// not an integer TLV
-	wrongType, _ := tlv.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0, 0, 0})
+	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0, 0, 0})
 	_, err = encoding.DecodeInteger(wrongType)
 	assert.Error(t, err)
 
 	// wrong length
-	wrongLength, _ := tlv.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0})
+	wrongLength, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0})
 	_, err = encoding.DecodeInteger(wrongLength)
 	assert.Error(t, err)
 }
@@ -183,12 +182,12 @@ func TestDecodeFloat_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// not a float TLV
-	wrongType, _ := tlv.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0, 0, 0})
+	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0, 0, 0})
 	_, err = encoding.DecodeFloat(wrongType)
 	assert.Error(t, err)
 
 	// wrong length
-	wrongLength, _ := tlv.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0})
+	wrongLength, _ := encoding.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0})
 	_, err = encoding.DecodeFloat(wrongLength)
 	assert.Error(t, err)
 }
@@ -199,7 +198,7 @@ func TestDecodeString_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// not a string TLV
-	wrongType, _ := tlv.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0})
+	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0})
 	_, err = encoding.DecodeString(wrongType)
 	assert.Error(t, err)
 }
@@ -210,17 +209,17 @@ func TestDecodeBoolean_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// not a boolean TLV
-	wrongType, _ := tlv.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0x01})
+	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0x01})
 	_, err = encoding.DecodeBoolean(wrongType)
 	assert.Error(t, err)
 
 	// wrong length
-	wrongLength, _ := tlv.NewTLV(byte(constants.DATA_TYPE_BOOLEAN), []byte{0, 0})
+	wrongLength, _ := encoding.NewTLV(byte(constants.DATA_TYPE_BOOLEAN), []byte{0, 0})
 	_, err = encoding.DecodeBoolean(wrongLength)
 	assert.Error(t, err)
 
 	// invalid value
-	invalidValue, _ := tlv.NewTLV(byte(constants.DATA_TYPE_BOOLEAN), []byte{0x02})
+	invalidValue, _ := encoding.NewTLV(byte(constants.DATA_TYPE_BOOLEAN), []byte{0x02})
 	_, err = encoding.DecodeBoolean(invalidValue)
 	assert.Error(t, err)
 }
@@ -245,7 +244,7 @@ func TestDecodeAny_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// unsupported TLV type
-	unknownType, _ := tlv.NewTLV(0xFF, []byte{0x01})
+	unknownType, _ := encoding.NewTLV(0xFF, []byte{0x01})
 	_, err = encoding.DecodeAny(unknownType)
 	assert.Error(t, err)
 }

@@ -1,6 +1,4 @@
-// Package tlv provides Type-Length-Value (TLV) encoding and decoding primitives
-// used by the binary protocol.
-package tlv
+package encoding
 
 import (
 	"encoding/binary"

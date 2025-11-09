@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +36,7 @@ func TestEncode_SingleNode(t *testing.T) {
 func TestDecode_SingleNode(t *testing.T) {
 	assert := assert.New(t)
 
-	tlvData, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x42})
+	tlvData, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x42})
 	decoded, err := selectors.DecodeNodeSelector(tlvData)
 	assert.NoError(err)
 	assert.Equal(constants.SINGLE_NODE, decoded.Type)
@@ -68,7 +68,7 @@ func TestEncode_NodeList(t *testing.T) {
 func TestDecode_NodeList(t *testing.T) {
 	assert := assert.New(t)
 
-	tlvData, _ := tlv.NewTLV(uint8(constants.NODE_LIST), []byte{0x01, 0x02, 0x03})
+	tlvData, _ := encoding.NewTLV(uint8(constants.NODE_LIST), []byte{0x01, 0x02, 0x03})
 	decoded, err := selectors.DecodeNodeSelector(tlvData)
 	assert.NoError(err)
 	assert.Equal(constants.NODE_LIST, decoded.Type)
@@ -100,7 +100,7 @@ func TestEncode_AllNodes(t *testing.T) {
 func TestDecode_AllNodes(t *testing.T) {
 	assert := assert.New(t)
 
-	tlvData, _ := tlv.NewTLV(uint8(constants.ALL_NODES), []byte{})
+	tlvData, _ := encoding.NewTLV(uint8(constants.ALL_NODES), []byte{})
 	decoded, err := selectors.DecodeNodeSelector(tlvData)
 	assert.NoError(err)
 	assert.Equal(constants.ALL_NODES, decoded.Type)
@@ -127,12 +127,12 @@ func TestDecodeInvalidState_SingleNode(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with length=0
-	tlvData, _ := tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{})
+	tlvData, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{})
 	_, err := selectors.DecodeNodeSelector(tlvData)
 	assert.Error(err)
 
 	// Decode with length=2
-	tlvData, _ = tlv.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x00, 0x02, 0x01, 0x02})
+	tlvData, _ = encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x00, 0x02, 0x01, 0x02})
 	_, err = selectors.DecodeNodeSelector(tlvData)
 	assert.Error(err)
 }
@@ -150,7 +150,7 @@ func TestDecodeInvalidState_NodeList(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with length=0
-	tlvData, _ := tlv.NewTLV(uint8(constants.NODE_LIST), nil)
+	tlvData, _ := encoding.NewTLV(uint8(constants.NODE_LIST), nil)
 	_, err := selectors.DecodeNodeSelector(tlvData)
 	assert.Error(err)
 }
@@ -160,7 +160,7 @@ func TestDecodeInvalidState_AllNodes(t *testing.T) {
 	assert := assert.New(t)
 
 	// Decode with non-empty value
-	tlvData, _ := tlv.NewTLV(uint8(constants.ALL_NODES), []byte{0x00, 0x01, 0x42})
+	tlvData, _ := encoding.NewTLV(uint8(constants.ALL_NODES), []byte{0x00, 0x01, 0x42})
 	_, err := selectors.DecodeNodeSelector(tlvData)
 	assert.Error(err)
 }
@@ -173,7 +173,7 @@ func TestNodeSelectorEncodeInvalidState_UnknownType(t *testing.T) {
 
 }
 func TestNodeSelectorNodeSelector_UnknownType(t *testing.T) {
-	tlvData, _ := tlv.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
+	tlvData, _ := encoding.NewTLV(0xFF, []byte{0x00, 0x01, 0x42})
 	_, err := selectors.DecodeNodeSelector(tlvData)
 	assert.Error(t, err)
 }

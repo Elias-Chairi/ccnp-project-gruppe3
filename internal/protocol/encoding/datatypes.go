@@ -6,18 +6,17 @@ import (
 	"math"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // EncodeInteger encodes a 32-bit integer into a TLV of type DATA_TYPE_INTEGER
-func EncodeInteger(value int32) (tlv.TLV, error) {
+func EncodeInteger(value int32) (TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, uint32(value))
-	return tlv.NewTLV(uint8(constants.DATA_TYPE_INTEGER), data)
+	return NewTLV(uint8(constants.DATA_TYPE_INTEGER), data)
 }
 
 // DecodeInteger decodes a TLV of type DATA_TYPE_INTEGER into a 32-bit integer.
-func DecodeInteger(tlv tlv.TLV) (int32, error) {
+func DecodeInteger(tlv TLV) (int32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
 	}
@@ -31,14 +30,14 @@ func DecodeInteger(tlv tlv.TLV) (int32, error) {
 }
 
 // EncodeFloat encodes a 32-bit float into a TLV of type DATA_TYPE_FLOAT
-func EncodeFloat(value float32) (tlv.TLV, error) {
+func EncodeFloat(value float32) (TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, math.Float32bits(value))
-	return tlv.NewTLV(uint8(constants.DATA_TYPE_FLOAT), data)
+	return NewTLV(uint8(constants.DATA_TYPE_FLOAT), data)
 }
 
 // DecodeFloat decodes a TLV of type DATA_TYPE_FLOAT into a 32-bit float.
-func DecodeFloat(tlv tlv.TLV) (float32, error) {
+func DecodeFloat(tlv TLV) (float32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
 	}
@@ -53,12 +52,12 @@ func DecodeFloat(tlv tlv.TLV) (float32, error) {
 }
 
 // EncodeString encodes a string into a TLV of type DATA_TYPE_STRING
-func EncodeString(value string) (tlv.TLV, error) {
-	return tlv.NewTLV(uint8(constants.DATA_TYPE_STRING), []byte(value))
+func EncodeString(value string) (TLV, error) {
+	return NewTLV(uint8(constants.DATA_TYPE_STRING), []byte(value))
 }
 
 // DecodeString decodes a TLV of type DATA_TYPE_STRING into a string.
-func DecodeString(tlv tlv.TLV) (string, error) {
+func DecodeString(tlv TLV) (string, error) {
 	if tlv == nil {
 		return "", fmt.Errorf("TLV is nil")
 	}
@@ -69,18 +68,18 @@ func DecodeString(tlv tlv.TLV) (string, error) {
 }
 
 // EncodeBoolean encodes a boolean into a TLV of type DATA_TYPE_BOOLEAN
-func EncodeBoolean(value bool) (tlv.TLV, error) {
+func EncodeBoolean(value bool) (TLV, error) {
 	var byteValue byte
 	if value {
 		byteValue = 0x01
 	} else {
 		byteValue = 0x00
 	}
-	return tlv.NewTLV(uint8(constants.DATA_TYPE_BOOLEAN), []byte{byteValue})
+	return NewTLV(uint8(constants.DATA_TYPE_BOOLEAN), []byte{byteValue})
 }
 
 // DecodeBoolean decodes a TLV of type DATA_TYPE_BOOLEAN into a boolean (0x00=false, 0x01=true).
-func DecodeBoolean(tlv tlv.TLV) (bool, error) {
+func DecodeBoolean(tlv TLV) (bool, error) {
 	if tlv == nil {
 		return false, fmt.Errorf("TLV is nil")
 	}
@@ -103,7 +102,7 @@ func DecodeBoolean(tlv tlv.TLV) (bool, error) {
 // EncodeAny encodes a supported Go value as the appropriate DataType TLV.
 // Supported: int32, float32, string, bool.
 // Returns an error for unsupported types.
-func EncodeAny(value any) (tlv.TLV, error) {
+func EncodeAny(value any) (TLV, error) {
 	switch v := value.(type) {
 	case int32:
 		return EncodeInteger(v)
@@ -120,7 +119,7 @@ func EncodeAny(value any) (tlv.TLV, error) {
 
 // DecodeAny decodes a DataType TLV into its Go value.
 // Returns an error for unsupported types.
-func DecodeAny(tlv tlv.TLV) (any, error) {
+func DecodeAny(tlv TLV) (any, error) {
 	if tlv == nil {
 		return nil, fmt.Errorf("TLV is nil")
 	}

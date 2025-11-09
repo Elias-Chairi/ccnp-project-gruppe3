@@ -7,7 +7,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +41,7 @@ func TestEncode_RegisterNodeMessage(t *testing.T) {
 
 	sensorTLV, _ := encoding.EncodeSensorEntry(sensors[0])
 	actuatorTLV, _ := encoding.EncodeActuatorEntry(actuators[0])
-	expectedTLV, _ := tlv.NewTLV(uint8(constants.REGISTER_NODE), tlv.EncodeMultipleTLVs([]tlv.TLV{sensorTLV, actuatorTLV}))
+	expectedTLV, _ := encoding.NewTLV(uint8(constants.REGISTER_NODE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorTLV, actuatorTLV}))
 	expectedData := expectedTLV.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -55,10 +54,10 @@ func TestDecode_RegisterNodeMessage(t *testing.T) {
 	actuators := []entity.Actuator[any]{{ID: 0x01, Type: "FAN", Unit: "RPM", State: false}}
 	sensorTLV, _ := encoding.EncodeSensorEntry(sensors[0])
 	actuatorTLV, _ := encoding.EncodeActuatorEntry(actuators[0])
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.REGISTER_NODE), tlv.EncodeMultipleTLVs([]tlv.TLV{sensorTLV, actuatorTLV}))
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.REGISTER_NODE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorTLV, actuatorTLV}))
 	encodedData := encodedTLV.Encode()
 
-	mainTLV, _ := tlv.DecodeTLV(encodedData)
+	mainTLV, _ := encoding.DecodeTLV(encodedData)
 	decoded, err := messages.DecodeRegisterNodeMessage(mainTLV)
 	assert.NoError(err)
 	assert.NotNil(decoded)
@@ -97,19 +96,19 @@ func TestDecodeRegisterNodeMessage_InvalidArgument(t *testing.T) {
 	assert.Error(err)
 
 	// wrong type
-	wrongType, _ := tlv.NewTLV(uint8(constants.COMMAND), []byte{})
+	wrongType, _ := encoding.NewTLV(uint8(constants.COMMAND), []byte{})
 	_, err = messages.DecodeRegisterNodeMessage(wrongType)
 	assert.Error(err)
 
 	// no sensors or actuators
-	emptyTLV, _ := tlv.NewTLV(uint8(constants.REGISTER_NODE), []byte{})
+	emptyTLV, _ := encoding.NewTLV(uint8(constants.REGISTER_NODE), []byte{})
 	_, err = messages.DecodeRegisterNodeMessage(emptyTLV)
 	assert.Error(err)
 
 	// invalid nested TLV
-	invalidTLV, _ := tlv.NewTLV(0xFF, []byte{0x01})
-	value := tlv.EncodeMultipleTLVs([]tlv.TLV{invalidTLV})
-	registerNodeTLV, _ := tlv.NewTLV(uint8(constants.REGISTER_NODE), value)
+	invalidTLV, _ := encoding.NewTLV(0xFF, []byte{0x01})
+	value := encoding.EncodeMultipleTLVs([]encoding.TLV{invalidTLV})
+	registerNodeTLV, _ := encoding.NewTLV(uint8(constants.REGISTER_NODE), value)
 	_, err = messages.DecodeRegisterNodeMessage(registerNodeTLV)
 	assert.Error(err)
 }

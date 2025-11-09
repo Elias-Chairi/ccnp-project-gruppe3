@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document describes the **SmartFarm TLV Protocol**, a custom application-layer protocol for communication between sensor/actuator nodes, control-panel clients, and a server hub in a smart-farming system.
+This document describes the **SmartFarm TRLV Protocol**, a custom application-layer protocol for communication between sensor/actuator nodes, control-panel clients, and a server hub in a smart-farming system.
 
 ## Terminology
 
@@ -11,7 +11,9 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
 | **Node**                  | A sensor/actuator device that reports measurements and executes actuator commands.        |
 | **Control Panel**         | Client application used by the farmer to monitor sensor data and send actuator commands.  |
 | **Server**                | Central hub managing discovery, registration, sensor updates, and command forwarding.     |
-| **TLV**                   | Type–Length–Value binary encoding used for all message payloads.                          |
+| **TRLV**                  | Type–RequestID–Length–Value binary encoding used for all top-level messages.              |
+| **TLV**                   | Type–Length–Value binary encoding used for all message data.                              |
+| **RequestID**             | Client-generated identifier to match requests and responses.                              |
 | **NodeID**                | Unique identifier assigned by the server to each sensor/actuator node after registration. |
 | **SensorID / ActuatorID** | Local identifiers assigned by a node to its individual sensors or actuators.              |
 | **Node Selector**         | Field indicating which node(s) a command targets (single, list, or ALL).                  |
@@ -27,7 +29,7 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
   - Best-effort delivery; actors should retry if no response is received.
 - Normal operation: TCP `6000`
   - All further communication uses a single TCP connection to the server.
-  - Connection-oriented, to ensure delivery and ordering.
+  - Connection-oriented, each actor maintains a persistent TCP connection to the server. The server keeps reading from each connection indefinitely. If the connection is broken (actor closes it or actor sends malformed data), the actor must re-register.
   - Stateful, the server maintains a registry of active nodes, their IDs, and their current sensor values and actuator states.
 
 ## Architecture
@@ -41,11 +43,17 @@ The actors are:
 
 ## Message format
 
-All messages use TLV encoding; TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
+All messages are encoded using a top-level TRLV.
+
+TRLV = Type (1 byte) + RequestID (2 byte) + Length (2 byte) + Value (variable length).
+
+All data within the Value field of the top-level TRLV message are themselves TLV-encoded.
+
+TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
 
 ### Code space layout
 
-All 1-byte type codes are partitioned into non-overlapping, nibble-aligned ranges for clarity and future growth:
+All 1-byte type codes are partitioned into non-overlapping ranges for clarity and future growth:
 
 - MessageType: 0x40-0x4F (16 IDs)
 - NodeSelector: 0x50-0x5F (16 IDs)
@@ -55,7 +63,7 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 - DataType: 0x90-0x9F (16 IDs)
 - AckErrorCode: 0xA0-0xAF (16 IDs)
 
-### Header TLV:
+### Top-level Message Type codes:
 
 | Type (hex)                | Direction                   | Expected value                                  | Response             |
 | ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
