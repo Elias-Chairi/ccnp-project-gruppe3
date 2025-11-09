@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document describes the **SmartFarm TLV Protocol**, a custom application-layer protocol for communication between sensor/actuator nodes, control-panel clients, and a server hub in a smart-farming system.
+This document describes the **SmartFarm TRLV Protocol**, a custom application-layer protocol for communication between sensor/actuator nodes, control-panel clients, and a server hub in a smart-farming system.
 
 ## Terminology
 
@@ -11,7 +11,9 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
 | **Node**                  | A sensor/actuator device that reports measurements and executes actuator commands.        |
 | **Control Panel**         | Client application used by the farmer to monitor sensor data and send actuator commands.  |
 | **Server**                | Central hub managing discovery, registration, sensor updates, and command forwarding.     |
-| **TLV**                   | Type–Length–Value binary encoding used for all message payloads.                          |
+| **TRLV**                  | Type–RequestID–Length–Value binary encoding used for all top-level messages.              |
+| **TLV**                   | Type–Length–Value binary encoding used for all message data.                              |
+| **RequestID**             | Client-generated identifier to match requests and responses.                              |
 | **NodeID**                | Unique identifier assigned by the server to each sensor/actuator node after registration. |
 | **SensorID / ActuatorID** | Local identifiers assigned by a node to its individual sensors or actuators.              |
 | **Node Selector**         | Field indicating which node(s) a command targets (single, list, or ALL).                  |
@@ -27,7 +29,7 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
   - Best-effort delivery; actors should retry if no response is received.
 - Normal operation: TCP `6000`
   - All further communication uses a single TCP connection to the server.
-  - Connection-oriented, to ensure delivery and ordering.
+  - Connection-oriented, each actor maintains a persistent TCP connection to the server. The server keeps reading from each connection indefinitely. If the connection is broken (actor closes it or actor sends malformed data), the actor must re-register.
   - Stateful, the server maintains a registry of active nodes, their IDs, and their current sensor values and actuator states.
 
 ## Architecture
@@ -41,11 +43,17 @@ The actors are:
 
 ## Message format
 
-All messages use TLV encoding; TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
+All messages are encoded using a top-level TRLV.
+
+TRLV = Type (1 byte) + RequestID (2 byte) + Length (2 byte) + Value (variable length).
+
+All data within the Value field of the top-level TRLV message are themselves TLV-encoded.
+
+TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
 
 ### Code space layout
 
-All 1-byte type codes are partitioned into non-overlapping, nibble-aligned ranges for clarity and future growth:
+All 1-byte type codes are partitioned into non-overlapping ranges for clarity and future growth:
 
 - MessageType: 0x40-0x4F (16 IDs)
 - NodeSelector: 0x50-0x5F (16 IDs)
@@ -55,15 +63,15 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 - DataType: 0x90-0x9F (16 IDs)
 - AckErrorCode: 0xA0-0xAF (16 IDs)
 
-### Header TLV:
+### Top-level Message Type codes:
 
 | Type (hex)                | Direction                   | Expected value                                  | Response             |
 | ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
 | `0x41` – DISCOVERY        | Node/Control → Server (UDP) |                                                 | ACK[TCP Address]     |
 | `0x42` – REGISTER_NODE    | Node → Server (TCP)         | [List of Actuator and Sensor entries]           | ACK[SINGLE_NODE]/ERR |
 | `0x43` – REGISTER_CONTROL | Control → Server (TCP)      |                                                 | ACK[NODE_LIST]       |
-| `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                   |                      |
-| `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                      |                      |
+| `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                  |                      |
+| `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                     |                      |
 | `0x45` – COMMAND          | Control → Server (TCP)      | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR              |
 | `0x45` – COMMAND          | Server → Node (TCP)         | [ActuatorSelector][ActuatorState]               | ACK/ERR              |
 | `0x46` – ACK/ERROR        | Node/Server → Sender (TCP)  | [ACK/ERROR]                                     |                      |
@@ -113,16 +121,28 @@ All 1-byte type codes are partitioned into non-overlapping, nibble-aligned range
 | `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true) |
 
 ## ACK/ERR codes
+
 Acknowledgment and error code should be the first byte of the Value field in an ACK/ERROR message. Extra data (e.g., error description) may follow. Extra data is interpreted as a UTF-8 string.
 
-| Code (hex) | Meaning                 |
-| ---------- | ----------------------- |
-| `0xA0`     | ACK: success            |
-| `0xA1`     | ERR: Unknown NodeID     |
-| `0xA2`     | ERR: Unknown SensorID   |
-| `0xA3`     | ERR: Unknown ActuatorID |
-| `0xA4`     | ERR: Invalid Action     |
-| `0xA5`     | ERR: Invalid value      |
+| Code (hex) | Meaning                   |
+| ---------- | ------------------------- |
+| `0xA0`     | ACK: success              |
+| `0xA1`     | ERR: Unknown NodeID       |
+| `0xA2`     | ERR: Unknown SensorID     |
+| `0xA3`     | ERR: Unknown ActuatorID   |
+| `0xA4`     | ERR: Invalid Action       |
+| `0xA5`     | ERR: Invalid value        |
+| `0xA6`     | ERR: Malformed message    |
+| `0xA7`     | ERR: Invalid message type |
+
+## Supported actuators
+
+| Type   | Unit                            | Description                                                  |
+| ------ | ------------------------------- | ------------------------------------------------------------ |
+| FAN    | 'RPM' -> integer, '' -> boolean | The rpm of the fan or on/off with a default speed            |
+| HEATER | '°C' -> float32, '' -> boolean  | Target temperature or on/off with a default temperature      |
+| WINDOW | '' -> float32 / boolean         | Openness percentage (0.0-1.0) or fully open/closed           |
+| LIGHT  | 'lx' -> float32, '' -> boolean  | Target brightness in lux or on/off with a default brightness |
 
 ## Example
 

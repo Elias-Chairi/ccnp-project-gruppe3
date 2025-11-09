@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
 
 // discoveryMessage represents a DISCOVERY message (Type DISCOVERY).
@@ -20,7 +20,7 @@ func NewDiscoveryMessage() *discoveryMessage {
 
 // Encode encodes the DISCOVERY message to bytes.
 func (m *discoveryMessage) Encode() ([]byte, error) {
-	tlv, err := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{})
+	tlv, err := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{})
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (m *discoveryMessage) Type() constants.MessageType {
 
 // DecodeDiscoveryMessage decodes a DISCOVERY message from TLV.
 // Validates type (DISCOVERY) and that length is zero.
-func DecodeDiscoveryMessage(tlv tlv.TLV) (discoveryMessage, error) {
+func DecodeDiscoveryMessage(tlv encoding.TLV) (discoveryMessage, error) {
 	if tlv == nil {
 		return discoveryMessage{}, fmt.Errorf("TLV is nil")
 	}

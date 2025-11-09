@@ -6,7 +6,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // commandMessage represents a COMMAND message (Type COMMAND).
@@ -42,7 +41,7 @@ func NewCommandMessageWithNode(nodeSelector selectors.NodeSelector, actuatorSele
 
 // Encode encodes the COMMAND message to bytes.
 func (m *commandMessage) Encode() ([]byte, error) {
-	var tlvs []tlv.TLV
+	var tlvs []encoding.TLV
 
 	// Encode node selector
 	if m.NodeSelector != nil {
@@ -65,14 +64,14 @@ func (m *commandMessage) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode Actuator State: %w", err)
 	}
-	actuatorStateTLV, err := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), actuatorStateValueTLV.Encode())
+	actuatorStateTLV, err := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), actuatorStateValueTLV.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Actuator State TLV: %w", err)
 	}
 	tlvs = append(tlvs, actuatorStateTLV)
 
-	value := tlv.EncodeMultipleTLVs(tlvs)
-	mainTLV, err := tlv.NewTLV(uint8(constants.COMMAND), value)
+	value := encoding.EncodeMultipleTLVs(tlvs)
+	mainTLV, err := encoding.NewTLV(uint8(constants.COMMAND), value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create COMMAND TLV: %w", err)
 	}
@@ -86,7 +85,7 @@ func (m *commandMessage) Type() constants.MessageType {
 
 // DecodeCommandMessage decodes a COMMAND message (Type COMMAND) TLV into a commandMessage.
 // Validates presence of required inner TLVs depending on direction (expectNode).
-func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
+func DecodeCommandMessage(t encoding.TLV, expectNode bool) (commandMessage, error) {
 	if t == nil {
 		return commandMessage{}, fmt.Errorf("TLV is nil")
 	}
@@ -94,7 +93,7 @@ func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
 		return commandMessage{}, fmt.Errorf("expected COMMAND type, got 0x%x", t.Type())
 	}
 
-	nested, err := tlv.DecodeMultipleTLVs(t.Value())
+	nested, err := encoding.DecodeMultipleTLVs(t.Value())
 	if err != nil {
 		return commandMessage{}, fmt.Errorf("failed to decode nested TLVs: %w", err)
 	}
@@ -122,7 +121,7 @@ func DecodeCommandMessage(t tlv.TLV, expectNode bool) (commandMessage, error) {
 			actSel = &as
 
 		case inner.Type() == uint8(constants.ACTUATOR_STATE):
-			innerTLV, err := tlv.DecodeTLV(inner.Value())
+			innerTLV, err := encoding.DecodeTLV(inner.Value())
 			if err != nil {
 				return commandMessage{}, fmt.Errorf("failed to decode Actuator State inner TLV: %w", err)
 			}

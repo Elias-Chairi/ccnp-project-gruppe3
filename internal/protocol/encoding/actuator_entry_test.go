@@ -6,7 +6,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,11 +66,11 @@ func TestEncodeActuatorEntry(t *testing.T) {
 
 			assert.Equal(uint8(constants.ACTUATOR_ENTRY), encoded.Type())
 
-			innerTLVs, err := tlv.DecodeMultipleTLVs(encoded.Value())
+			innerTLVs, err := encoding.DecodeMultipleTLVs(encoded.Value())
 			require.NoError(err)
 			require.Len(innerTLVs, 4)
 
-			fieldTLVs := make(map[constants.ActuatorField]tlv.TLV)
+			fieldTLVs := make(map[constants.ActuatorField]encoding.TLV)
 			for _, inner := range innerTLVs {
 				fieldTLVs[constants.ActuatorField(inner.Type())] = inner
 			}
@@ -90,7 +89,7 @@ func TestEncodeActuatorEntry(t *testing.T) {
 
 			stateTLV, ok := fieldTLVs[constants.ACTUATOR_STATE]
 			require.True(ok)
-			stateValueTLV, err := tlv.DecodeTLV(stateTLV.Value())
+			stateValueTLV, err := encoding.DecodeTLV(stateTLV.Value())
 			require.NoError(err)
 			stateValue, err := encoding.DecodeAny(stateValueTLV)
 			require.NoError(err)
@@ -102,12 +101,12 @@ func TestEncodeActuatorEntry(t *testing.T) {
 func TestDecodeActuatorEntry(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			idTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_ID), []byte{tt.actuator.ID})
-			typeTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_TYPE_FIELD), []byte(tt.actuator.Type))
-			unitTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_UNIT), []byte(tt.actuator.Unit))
+			idTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_ID), []byte{tt.actuator.ID})
+			typeTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_TYPE_FIELD), []byte(tt.actuator.Type))
+			unitTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_UNIT), []byte(tt.actuator.Unit))
 			StateValueTLV, _ := encoding.EncodeAny(tt.actuator.State)
-			stateTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), StateValueTLV.Encode())
-			entryTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_ENTRY), tlv.EncodeMultipleTLVs([]tlv.TLV{idTLV, typeTLV, unitTLV, stateTLV}))
+			stateTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), StateValueTLV.Encode())
+			entryTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_ENTRY), encoding.EncodeMultipleTLVs([]encoding.TLV{idTLV, typeTLV, unitTLV, stateTLV}))
 
 			decoded, err := encoding.DecodeActuatorEntry(entryTLV)
 			require.NoError(t, err)
@@ -140,7 +139,7 @@ func TestDecodeActuatorEntry_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// wrong TLV type
-	wrongType, _ := tlv.NewTLV(byte(constants.SENSOR_ENTRY), []byte{0x01})
+	wrongType, _ := encoding.NewTLV(byte(constants.SENSOR_ENTRY), []byte{0x01})
 	_, err = encoding.DecodeActuatorEntry(wrongType)
 	assert.Error(t, err)
 }

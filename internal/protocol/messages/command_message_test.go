@@ -7,7 +7,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,8 +34,8 @@ func TestEncode_CommandMessage(t *testing.T) {
 
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(true)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	tl, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	tl, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{aSel, aState}))
 	expectedData := tl.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -47,8 +46,8 @@ func TestDecode_CommandMessage(t *testing.T) {
 
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(true)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{aSel, aState}))
 
 	decoded, err := messages.DecodeCommandMessage(encodedTLV, false) // expectNode = false
 	assert.NoError(err)
@@ -87,8 +86,8 @@ func TestEncode_CommandMessageWithNode(t *testing.T) {
 	nSel, _ := selectors.NewSingleNodeSelector(0x03).Encode()
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(false)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	tl, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{nSel, aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	tl, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{nSel, aSel, aState}))
 	expectedData := tl.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -100,8 +99,8 @@ func TestDecode_CommandMessageWithNode(t *testing.T) {
 	nSel, _ := selectors.NewSingleNodeSelector(0x03).Encode()
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(false)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{nSel, aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{nSel, aSel, aState}))
 
 	decoded, err := messages.DecodeCommandMessage(encodedTLV, true) // expectNode = true
 	assert.NoError(err)
@@ -123,32 +122,32 @@ func TestDecodeCommandMessage_InvalidArgument(t *testing.T) {
 	assert.Error(err)
 
 	// Decode with wrong TLV type
-	wrongType, _ := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{})
+	wrongType, _ := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{})
 	_, err = messages.DecodeCommandMessage(wrongType, false)
 	assert.Error(err)
 
 	// Decode with wrong nested TLV type
-	wrongNestedTLV, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), []byte{0xFF})
-	tl, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{wrongNestedTLV}))
+	wrongNestedTLV, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), []byte{0xFF})
+	tl, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{wrongNestedTLV}))
 	_, err = messages.DecodeCommandMessage(tl, false)
 	assert.Error(err)
 
 	// Missing Node Selector
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(true)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{aSel, aState}))
 	_, err = messages.DecodeCommandMessage(encodedTLV, true) // expectNode = true
 	assert.Error(err)
 
 	// Missing Actuator Selector
 	nSel, _ := selectors.NewSingleNodeSelector(0x03).Encode()
-	encodedTLV, _ = tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{nSel, aState}))
+	encodedTLV, _ = encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{nSel, aState}))
 	_, err = messages.DecodeCommandMessage(encodedTLV, false)
 	assert.Error(err)
 
 	// Missing Actuator State
-	encodedTLV, _ = tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{nSel, aSel}))
+	encodedTLV, _ = encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{nSel, aSel}))
 	_, err = messages.DecodeCommandMessage(encodedTLV, false)
 	assert.Error(err)
 }
@@ -158,8 +157,8 @@ func TestDecodeCommandMessage_MissingNodeSelector(t *testing.T) {
 
 	aSel, _ := selectors.NewSingleActuatorSelector(0x05).Encode()
 	b, _ := encoding.EncodeBoolean(true)
-	aState, _ := tlv.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
-	encodedTLV, _ := tlv.NewTLV(uint8(constants.COMMAND), tlv.EncodeMultipleTLVs([]tlv.TLV{aSel, aState}))
+	aState, _ := encoding.NewTLV(uint8(constants.ACTUATOR_STATE), b.Encode())
+	encodedTLV, _ := encoding.NewTLV(uint8(constants.COMMAND), encoding.EncodeMultipleTLVs([]encoding.TLV{aSel, aState}))
 
 	decoded, err := messages.DecodeCommandMessage(encodedTLV, false)
 	assert.NoError(err)

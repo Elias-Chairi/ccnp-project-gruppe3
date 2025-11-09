@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +26,7 @@ func TestEncode_DiscoveryMessage(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(encoded)
 
-	expectedTLV, _ := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{})
+	expectedTLV, _ := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{})
 	expectedData := expectedTLV.Encode()
 
 	assert.Equal(expectedData, encoded)
@@ -35,7 +35,7 @@ func TestEncode_DiscoveryMessage(t *testing.T) {
 func TestDecode_DiscoveryMessage(t *testing.T) {
 	assert := assert.New(t)
 
-	discoveryTLV, _ := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{})
+	discoveryTLV, _ := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{})
 
 	decoded, err := messages.DecodeDiscoveryMessage(discoveryTLV)
 	assert.NoError(err)
@@ -52,12 +52,12 @@ func TestDecodeDiscoveryMessage_InvalidArgument(t *testing.T) {
 	assert.Error(err)
 
 	// wrong type
-	wrongType, _ := tlv.NewTLV(uint8(constants.COMMAND), []byte{})
+	wrongType, _ := encoding.NewTLV(uint8(constants.COMMAND), []byte{})
 	_, err = messages.DecodeDiscoveryMessage(wrongType)
 	assert.Error(err)
 
 	// non-empty value
-	nonEmptyTLV, _ := tlv.NewTLV(uint8(constants.DISCOVERY), []byte{0x01, 0x02})
+	nonEmptyTLV, _ := encoding.NewTLV(uint8(constants.DISCOVERY), []byte{0x01, 0x02})
 	_, err = messages.DecodeDiscoveryMessage(nonEmptyTLV)
 	assert.Error(err)
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/tlv"
 )
 
 // NodeSelector represents different ways to select nodes.
@@ -40,27 +39,27 @@ func NewAllNodesSelector() *NodeSelector {
 
 // Encode encodes the node selector as TLV.
 // Returns an error for invalid configurations (e.g., missing IDs).
-func (n *NodeSelector) Encode() (tlv.TLV, error) {
+func (n *NodeSelector) Encode() (encoding.TLV, error) {
 	switch n.Type {
 	case constants.SINGLE_NODE:
 		if len(n.NodeIDs) != 1 {
 			return nil, fmt.Errorf("SINGLE_NODE selector must have exactly one node ID")
 		}
-		return tlv.NewTLV(uint8(constants.SINGLE_NODE), encoding.EncodeByte(n.NodeIDs[0]))
+		return encoding.NewTLV(uint8(constants.SINGLE_NODE), encoding.EncodeByte(n.NodeIDs[0]))
 	case constants.NODE_LIST:
 		if len(n.NodeIDs) == 0 {
 			return nil, fmt.Errorf("NODE_LIST selector must have at least one node ID")
 		}
-		return tlv.NewTLV(uint8(constants.NODE_LIST), encoding.EncodeByteList(n.NodeIDs))
+		return encoding.NewTLV(uint8(constants.NODE_LIST), encoding.EncodeByteList(n.NodeIDs))
 	case constants.ALL_NODES:
-		return tlv.NewTLV(uint8(constants.ALL_NODES), []byte{})
+		return encoding.NewTLV(uint8(constants.ALL_NODES), []byte{})
 	default:
 		return nil, fmt.Errorf("unknown node selector type: %x", n.Type)
 	}
 }
 
 // DecodeNodeSelector decodes a node selector from TLV and validates length rules.
-func DecodeNodeSelector(tlv tlv.TLV) (NodeSelector, error) {
+func DecodeNodeSelector(tlv encoding.TLV) (NodeSelector, error) {
 	switch constants.NodeSelector(tlv.Type()) {
 	case constants.SINGLE_NODE:
 		if tlv.Length() != 1 {
