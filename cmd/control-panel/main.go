@@ -7,6 +7,7 @@ import (
 	// "time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
 	//"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
 
