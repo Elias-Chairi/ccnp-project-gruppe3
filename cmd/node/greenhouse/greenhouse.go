@@ -246,63 +246,52 @@ func (g *Greenhouse) updateHumidity(sensor *entity.Sensor[any]) {
 
 
 
-// updateLightLevel simulates how the greenhouse's light intensity (in lux) changes during one simulation step.
-// It is affected by outdoor light passing through open windows and artificial light sources inside the greenhouse.
+// updateLightLevel updates the greenhouse's light sensor reading (in lux)
+// based on outdoor light and artificial lighting.
+// The brightest source (natural or artificial) determines the indoor light level.
 func (g *Greenhouse) updateLightLevel(sensor *entity.Sensor[any]) {
-	// Get current light value from the sensor
-	var currentLux float32
-	if sensor.Value != nil {
-		val, ok := sensor.Value.(float32)
-		if !ok {
-			log.Printf("Sensor ID %d has invalid light value type %T\n", sensor.ID, sensor.Value)
-			return
-		}
-		currentLux = val
+	if sensor == nil {
+		return
 	}
 
-	// Group actuators by type
-	actuators := make(map[string][]*entity.Actuator[any])
+	// Get outdoor light intensity
+	outdoorLux := g.Outdoor.LightLevel
+
+	// Calculates total artificial light intensity
+	var artificialLux float32
 	for _, a := range g.Node.Actuators {
-		actuators[a.Type] = append(actuators[a.Type], a)
-	}
-
-	// Window effect
-	// Open windows let a portion of the outdoor light enter the greenhouse.
-	windowsOpen := float32(0.0)
-	for _, a := range actuators["WINDOW"] {
-		switch v := a.State.(type) {
-		case bool:
-			if v {
-				windowsOpen += DefaultWindowOpen
-			}
-		case float32:
-			windowsOpen += v
+		if a.Type != "LIGHT" {
+			continue
 		}
-	}
 
-	// Let some fraction of outdoor light in, depending on window openness
-	windowEffect := min(1.0, windowsOpen/MaxWindowOpenness)
-	currentLux += (g.Outdoor.LightLevel*windowEffect - currentLux) * 0.05
-
-	// Artificial light effect
-	// Lights add additional brightness toward their target level.
-	for _, a := range actuators["LIGHT"] {
 		switch v := a.State.(type) {
 		case bool:
 			if v {
-				// Convert DefaultLightLUX (int32) to float32 for math
-				currentLux += (float32(DefaultLightLUX) - currentLux) * 0.1
+				artificialLux += float32(DefaultLightLUX)
 			}
 		case int32:
 			if v > 0 {
-				effect := (float32(v) / float32(DefaultLightLUX)) * 0.1
-				currentLux += (float32(DefaultLightLUX) - currentLux) * effect
+				artificialLux += float32(v)
 			}
+		case float32:
+			if v > 0 {
+				artificialLux += v
+			}
+		default:
+			// ignore unsupported actuator types
 		}
 	}
 
-	// Update the sensor value and trigger the callback
+	// Chooses the dominant light source
+	currentLux := outdoorLux
+	if artificialLux > outdoorLux {
+		currentLux = artificialLux
+	}
+
+	// Updates sensor instantly
 	sensor.Value = currentLux
+
+	// Notifies listeners if there are any idk
 	if g.onSensorUpdate != nil {
 		g.onSensorUpdate(sensor)
 	}
