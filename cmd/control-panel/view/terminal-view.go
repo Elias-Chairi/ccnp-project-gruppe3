@@ -41,26 +41,24 @@ type model struct {
 	message      string
 	choices      []string
 	cursor       int
-	selected     map[int]struct{}
 	nodes        *[]entity.Node
 	selectedNode int
+	stack        *util.Stack[model] // used to manage navigation history
 }
-
-var modelStack util.Stack[model]
 
 func initialModel(nodes []entity.Node) tea.Model {
 	return model{
 		viewState:    mainMenu,
 		message:      "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
 		choices:      []string{"Manage Greenhouses", "Exit"},
-		selected:     make(map[int]struct{}),
 		nodes:        &nodes,
+		stack:        &util.Stack[model]{},
 		selectedNode: 0,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	modelStack.Push(m)
+	m.stack.Push(m) // Push the initial state onto the stack
 	return nil
 }
 
@@ -101,7 +99,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "left", "backspace", "a", "h":
 			if m.viewState != mainMenu {
-				nm, _ := modelStack.Pop()
+				nm, _ := m.stack.Pop()
 				m = *nm
 			}
 
@@ -138,7 +136,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "right", "d", "l":
 			if m.viewState != actuatorView && m.viewState != sensorView {
-				modelStack.Push(m)
+				m.stack.Push(m)
 			}
 			switch m.viewState {
 			case mainMenu:

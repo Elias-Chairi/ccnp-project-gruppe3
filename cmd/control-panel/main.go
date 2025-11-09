@@ -6,8 +6,8 @@ import (
 	// "log"
 	// "time"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	//"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
 
@@ -76,6 +76,6 @@ func main() {
 
 	// --- Combine all nodes ---
 	nodes := []entity.Node{nodeA, nodeB, nodeC}
-	v := view.TerminalView{Nodes : nodes}
-    v.Start()
+	v := &view.TerminalView{Nodes: nodes}
+	v.Start()
 }
