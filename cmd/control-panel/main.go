@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"time"
+	// "flag"
+	// "fmt"
+	// "log"
+	// "time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	//"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
 
 func main() {
