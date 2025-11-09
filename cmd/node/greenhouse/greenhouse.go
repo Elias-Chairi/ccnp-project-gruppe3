@@ -17,6 +17,14 @@ const (
 	TemperatureChangePerWindowStep float32 = 0.05 // 5% convergence rate towards outdoor temperature per simulation step per fully open window (i.e., moves 5% closer each step)
 
 	MaxWindowOpenness float32 = 6.0 // Maximum cumulative openness from all windows. Fan effects scale from 0 to TemperatureChangePerFanStep based on openness
+
+	HumidityChangePerWindowStep float32 = 0.05  // 5% convergence toward outdoor humidity per fully open window
+	HumidityChangePerFanStep    float32 = 0.02  // 2% additional convergence per fan
+	HumidityChangePerHeaterStep float32 = -0.03 // heater dries air: -3% relative change per simulation step
+
+	DefaultHumidifierHumidity float32 = 80.0 // default humidifier target humidity (80%)
+
+	LightChangePerWindowStep float32 = 0.05  // 5% of outdoor light passes per fully open window
 )
 
 type OutdoorConditions struct {
@@ -45,9 +53,9 @@ func (g *Greenhouse) SimulateStep() {
 		case "TEMPERATURE":
 			g.updateTemperature(s)
 		case "HUMIDITY":
-			// g.updateHumidity(s)
+			 g.updateHumidity(s)
 		case "LIGHT":
-			// g.updateLightLevel(s)
+			 g.updateLightLevel(s)
 		default:
 			log.Println("Unknown sensor type:", s.Type)
 		}
@@ -154,3 +162,152 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 		g.onSensorUpdate(sensor)
 	}
 }
+
+
+
+// updateHumidity simulates how the greenhouse's humidity changes during one simulation step.
+// It is affected by outdoor humidity, open windows, running fans, and active heaters.
+// Windows and fans move the humidity toward the outdoor value, while heaters dry the air slightly.
+func (g *Greenhouse) updateHumidity(sensor *entity.Sensor[any]) {
+	
+	// Get current humidity value from the sensor
+	var currentHum float32
+	if sensor.Value != nil {
+		val, ok := sensor.Value.(float32)
+		if !ok {
+			log.Printf("Sensor ID %d has invalid humidity value type %T\n", sensor.ID, sensor.Value)
+			return
+		}
+		currentHum = val
+	}
+
+	// Group actuators by type for easy access (same structure as updateTemperature)
+	actuators := make(map[string][]*entity.Actuator[any])
+	for _, a := range g.Node.Actuators {
+		actuators[a.Type] = append(actuators[a.Type], a)
+	}
+
+	// Heater effect
+	// Heaters dry the air a bit every step since warm air reduces relative humidity.
+	for _, a := range actuators["HEATER"] {
+		if on, ok := a.State.(bool); ok && on {
+			currentHum -= currentHum * 0.02 // lowers humidity by ~2%
+		}
+	}
+
+	// Window effect
+	// Open windows let humidity move toward outdoor humidity.
+	windowsOpen := float32(0.0)
+	for _, a := range actuators["WINDOW"] {
+		switch v := a.State.(type) {
+		case bool:
+			if v {
+				windowsOpen += DefaultWindowOpen
+				currentHum += (g.Outdoor.Humidity - currentHum) * HumidityChangePerWindowStep
+			}
+		case float32:
+			windowsOpen += v
+			currentHum += (g.Outdoor.Humidity - currentHum) * (v * HumidityChangePerWindowStep)
+		}
+	}
+
+	// Fan effect
+	// Fans accelerate humidity equalization, but only if windows are open.
+	if windowsOpen > 0 {
+		openEffect := min(1.0, windowsOpen/MaxWindowOpenness)
+		for _, a := range actuators["FAN"] {
+			switch v := a.State.(type) {
+			case bool:
+				if v {
+					currentHum += (g.Outdoor.Humidity - currentHum) * 0.02 * openEffect
+				}
+			case int32:
+				if v > 0 {
+					effect := (float32(v) / float32(DefaultFanRPM)) * 0.02 * openEffect
+					currentHum += (g.Outdoor.Humidity - currentHum) * effect
+				}
+			}
+		}
+	}
+
+	// humidity between 0% and 100%
+	if currentHum < 0 {
+		currentHum = 0
+	} else if currentHum > 100 {
+		currentHum = 100
+	}
+
+	// Update the sensor value and trigger the callback
+	sensor.Value = currentHum
+	if g.onSensorUpdate != nil {
+		g.onSensorUpdate(sensor)
+	}
+}
+
+
+
+// updateLightLevel simulates how the greenhouse's light intensity (in lux) changes during one simulation step.
+// It is affected by outdoor light passing through open windows and artificial light sources inside the greenhouse.
+func (g *Greenhouse) updateLightLevel(sensor *entity.Sensor[any]) {
+	// Get current light value from the sensor
+	var currentLux float32
+	if sensor.Value != nil {
+		val, ok := sensor.Value.(float32)
+		if !ok {
+			log.Printf("Sensor ID %d has invalid light value type %T\n", sensor.ID, sensor.Value)
+			return
+		}
+		currentLux = val
+	}
+
+	// Group actuators by type
+	actuators := make(map[string][]*entity.Actuator[any])
+	for _, a := range g.Node.Actuators {
+		actuators[a.Type] = append(actuators[a.Type], a)
+	}
+
+	// Window effect
+	// Open windows let a portion of the outdoor light enter the greenhouse.
+	windowsOpen := float32(0.0)
+	for _, a := range actuators["WINDOW"] {
+		switch v := a.State.(type) {
+		case bool:
+			if v {
+				windowsOpen += DefaultWindowOpen
+			}
+		case float32:
+			windowsOpen += v
+		}
+	}
+
+	// Let some fraction of outdoor light in, depending on window openness
+	windowEffect := min(1.0, windowsOpen/MaxWindowOpenness)
+	currentLux += (g.Outdoor.LightLevel*windowEffect - currentLux) * 0.05
+
+	// Artificial light effect
+	// Lights add additional brightness toward their target level.
+	for _, a := range actuators["LIGHT"] {
+		switch v := a.State.(type) {
+		case bool:
+			if v {
+				// Convert DefaultLightLUX (int32) to float32 for math
+				currentLux += (float32(DefaultLightLUX) - currentLux) * 0.1
+			}
+		case int32:
+			if v > 0 {
+				effect := (float32(v) / float32(DefaultLightLUX)) * 0.1
+				currentLux += (float32(DefaultLightLUX) - currentLux) * effect
+			}
+		}
+	}
+
+	// Update the sensor value and trigger the callback
+	sensor.Value = currentLux
+	if g.onSensorUpdate != nil {
+		g.onSensorUpdate(sensor)
+	}
+}
+
+
+
+
