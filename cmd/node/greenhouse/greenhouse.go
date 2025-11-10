@@ -30,7 +30,7 @@ const (
 type OutdoorConditions struct {
 	Temperature float32
 	Humidity    float32
-	LightLevel  float32
+	LightLevel  int32
 }
 
 type Greenhouse struct {
@@ -258,7 +258,7 @@ func (g *Greenhouse) updateLightLevel(sensor *entity.Sensor[any]) {
 	outdoorLux := g.Outdoor.LightLevel
 
 	// Calculates total artificial light intensity
-	var artificialLux float32
+	var artificialLux int32
 	for _, a := range g.Node.Actuators {
 		if a.Type != "LIGHT" {
 			continue
@@ -267,13 +267,9 @@ func (g *Greenhouse) updateLightLevel(sensor *entity.Sensor[any]) {
 		switch v := a.State.(type) {
 		case bool:
 			if v {
-				artificialLux += float32(DefaultLightLUX)
+				artificialLux += DefaultLightLUX
 			}
 		case int32:
-			if v > 0 {
-				artificialLux += float32(v)
-			}
-		case float32:
 			if v > 0 {
 				artificialLux += v
 			}
