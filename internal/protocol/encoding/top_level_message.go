@@ -22,6 +22,8 @@ type Message struct {
 // It first reads until it has received the message type (1 byte), if message type requires a RequestID it reads that (2 bytes),
 // then reads the length (2 bytes), then reads until the full value is received based on the length.
 //
+// For messages not requiring a RequestID, the RequestID field in the returned Message will be nil.
+//
 // Returns the Message, number of bytes read, and an error if any.
 func readMessage(r io.Reader) (*Message, int, error) {
 	headerBuf := make([]byte, 1) // expecting Type(1) + RequestID(2) + Length(2)
