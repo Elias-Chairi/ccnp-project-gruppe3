@@ -2,8 +2,7 @@ package util
 
 import "net"
 
-// Generates a unique ID based on the current number of existing IDs.
-// Is an ID generator that maps the created ID to the net.Conn to be implemented by node and control panel entities.
+// GetUniqueID generates a unique uint8 ID not present in the existingIDs map.
 func GetUniqueID(existingIDs map[uint8]net.Conn) uint8 {
 	newID := uint8(len(existingIDs) + 1)
 	for {
