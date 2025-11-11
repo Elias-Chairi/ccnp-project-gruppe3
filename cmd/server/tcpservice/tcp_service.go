@@ -86,6 +86,7 @@ func handleRegistration(conn net.Conn) error {
 		// when function returns, remove node ID from registry
 		// TODO: handle reconnections properly
 		defer nodeRegistry.RemoveNodeID(id)
+		return handleConn(conn, handleNode)
 
 	// todo: send new node to control panel(s)
 
