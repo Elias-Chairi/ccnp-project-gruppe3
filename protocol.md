@@ -74,7 +74,7 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 #### Registration
 
-**Purpose**: Actors establishes an indefinitely lasting TCP connection. 
+**Purpose**: Actors establish an indefinitely lasting TCP connection. 
 - Nodes register their sensors and actuators, and get assigned a NodeID.
 - Control panels register, and receive the current list of all registered nodes.
 
