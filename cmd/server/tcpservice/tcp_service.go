@@ -77,9 +77,14 @@ func handleRegistration(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
-		// todo: reply with assigned node ID
+
+		id := CreateNodeID(conn)
 		// todo: send new node to control panel(s)
-		return handleConn(conn, handleNode)
+		err = handleConn(conn, handleNode)
+		RemoveNodeID(id)
+
+		return err
+
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(msg.TLV)
 		if err != nil {
