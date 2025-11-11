@@ -67,7 +67,7 @@ func handleRegistration(conn net.Conn) error {
 
 	msg, err := encoding.ReadNextMessage(conn, readDeadline)
 	if err != nil {
-		return fmt.Errorf("error reading registration TRLV: %w", err)
+		return fmt.Errorf("error reading registration message: %w", err)
 	}
 
 	// handle based on registration type
@@ -92,7 +92,7 @@ func handleRegistration(conn net.Conn) error {
 	}
 }
 
-// messageHandler is a function that handles a single top-level TRLV message from a connection.
+// messageHandler is a function that handles a single top-level message from a connection.
 type messageHandler func(topLevelMessage *encoding.Message) messages.AckErrorMessage
 
 // Generic connection handler.

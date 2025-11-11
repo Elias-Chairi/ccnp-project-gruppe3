@@ -26,10 +26,10 @@ type Message struct {
 //
 // Returns the Message, number of bytes read, and an error if any.
 func readMessage(r io.Reader) (*Message, int, error) {
-	headerBuf := make([]byte, 1) // expecting Type(1) + RequestID(2) + Length(2)
+	headerBuf := make([]byte, 1) // read Type(1)
 	n, err := io.ReadFull(r, headerBuf)
 	if err != nil {
-		return nil, n, fmt.Errorf("error reading TRLV header: %w", err)
+		return nil, n, fmt.Errorf("error reading message header: %w", err)
 	}
 
 	messageType := constants.MessageType(headerBuf[0])
@@ -39,29 +39,29 @@ func readMessage(r io.Reader) (*Message, int, error) {
 
 	var requestID *uint16
 	if messageType == constants.COMMAND || messageType == constants.ACK_ERROR {
-		requestIDBuf := make([]byte, 2)
+		requestIDBuf := make([]byte, 2) // read RequestID(2)
 		m, err := io.ReadFull(r, requestIDBuf)
 		n += m
 		if err != nil {
-			return nil, n, fmt.Errorf("error reading TRLV request ID: %w", err)
+			return nil, n, fmt.Errorf("error reading message request ID: %w", err)
 		}
 		reqID := binary.BigEndian.Uint16(requestIDBuf)
 		requestID = &reqID
 	}
 
 	lengthBuf := make([]byte, 2)
-	m, err := io.ReadFull(r, lengthBuf)
+	m, err := io.ReadFull(r, lengthBuf) // read Length(2)
 	n += m
 	if err != nil {
-		return nil, n, fmt.Errorf("error reading TRLV header: %w", err)
+		return nil, n, fmt.Errorf("error reading message header: %w", err)
 	}
 	length := binary.BigEndian.Uint16(lengthBuf)
 
 	value := make([]byte, length)
-	m, err = io.ReadFull(r, value)
+	m, err = io.ReadFull(r, value) // read Value(N)
 	n += m
 	if err != nil {
-		return nil, n, fmt.Errorf("error reading TRLV value: %w", err)
+		return nil, n, fmt.Errorf("error reading message value: %w", err)
 	}
 
 	return &Message{
