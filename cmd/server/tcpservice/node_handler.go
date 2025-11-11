@@ -12,8 +12,8 @@ import (
 // Map to assign node IDs to the net.Conn
 var nodeIDsMap = make(map[uint8]net.Conn)
 
-var handleNode messageHandler = func(t *encoding.TRLV) messages.AckErrorMessage {
-	switch t.TLV.Type() {
+var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMessage {
+	switch msg.TLV.Type() {
 	case uint8(constants.SENSOR_UPDATE):
 		// todo: handle sensor update
 		return messages.AckSuccessMessage()
