@@ -14,15 +14,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-// Make map to assign node IDs to the net.Conn
-var nodeIDs = make(map[int16]net.Conn)
-
-func createNodeID(conn net.Conn) int16 {
-	nodeID := int16(len(nodeIDs) + 1)
-	nodeIDs[nodeID] = conn
-	return nodeID
-}
-
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
 	IP: net.ParseIP("127.0.0.1"),
@@ -113,21 +104,13 @@ func handleRegistration(conn net.Conn) error {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
 
-		// Create and assign new node ID
-		nodeID := createNodeID(conn)
-
-		// Send ACK_SUCCESS response with the assigned node ID
-		response := messages.AckErrorMessage{
-			Code: constants.ACK_SUCCESS,
-			Data: fmt.Sprintf("NodeID:%d", nodeID),
-		}
-
-		if err := sendResponse(conn, response); err != nil {
-			return fmt.Errorf("failed to send node ID response: %w", err)
-		}
-
+		id := CreateNodeID(conn)
 		// todo: send new node to control panel(s)
-		return handleConn(conn, handleNode)
+		err = handleConn(conn, handleNode)
+		RemoveNodeID(id)
+
+		return err
+
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(trlv.TLV)
 		if err != nil {
