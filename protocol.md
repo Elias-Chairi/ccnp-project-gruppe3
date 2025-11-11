@@ -76,7 +76,7 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 **Purpose**: Actors establishes an indefinitely lasting TCP connection. 
 - Nodes register their sensors and actuators, and get assigned a NodeID.
-- Control panels registers, and receive the current list of all registered nodes.
+- Control panels register, and receive the current list of all registered nodes.
 
 **Top-level**: TLV, does not need request/response matching since it does not make sense to write multiple registrations on the same connection.
 
