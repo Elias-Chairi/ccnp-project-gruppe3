@@ -34,6 +34,7 @@ func CreateNodeID(conn net.Conn) uint8 {
 	return nodeID
 }
 
+// RemoveNodeID deletes the node ID and its associated connection from the nodeIDsMap.
 func RemoveNodeID(id uint8) {
 	delete(nodeIDsMap, id)
 }
