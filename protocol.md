@@ -43,11 +43,9 @@ The actors are:
 
 ## Message format
 
-All messages are encoded using a top-level TRLV.
+All messages are encoded in binary using a TLV-based format, with a top-level TLV or TRLV if the message is a request/response pair.
 
 TRLV = Type (1 byte) + RequestID (2 byte) + Length (2 byte) + Value (variable length).
-
-All data within the Value field of the top-level TRLV message are themselves TLV-encoded.
 
 TLV = Type (1 byte) + Length (2 byte) + Value (variable length).
 
@@ -65,13 +63,49 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 ### Top-level Message Type codes:
 
+#### Discovery
+
+**Purpose**: Allow nodes and control panels to discover the server's TCP address.
+
+**Top-level**: TLV, does not need request/response matching since every response is identical.
+| Type (hex)         | Direction                   | Expected value | Response |
+| ------------------ | --------------------------- | -------------- | -------- |
+| `0x41` – DISCOVERY | Node/Control → Server (UDP) |                | ACK      |
+
+#### Registration
+
+**Purpose**: Actors establishes an indefinitely lasting TCP connection. 
+- Nodes register their sensors and actuators, and get assigned a NodeID.
+- Control panels registers, and receive the current list of all registered nodes.
+
+**Top-level**: TLV, does not need request/response matching since it does not make sense to write multiple registrations on the same connection.
+
 | Type (hex)                | Direction                   | Expected value                                  | Response             |
 | ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
-| `0x41` – DISCOVERY        | Node/Control → Server (UDP) |                                                 | ACK[TCP Address]     |
 | `0x42` – REGISTER_NODE    | Node → Server (TCP)         | [List of Actuator and Sensor entries]           | ACK[SINGLE_NODE]/ERR |
 | `0x43` – REGISTER_CONTROL | Control → Server (TCP)      |                                                 | ACK[NODE_LIST]       |
+
+#### Sensor Update
+
+**Purpose**: Nodes send updated sensor values to the server, which forwards them to all connected control panels.
+
+**Top-level**: TLV, does not need request/response matching since updates do not expect a reply.
+
+| Type (hex)                | Direction                   | Expected value                                  | Response             |
+| ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
 | `0x44` – SENSOR_UPDATE    | Node → Server (TCP)         | [Sensor entry]                                  |                      |
 | `0x44` – SENSOR_UPDATE    | Server → Control (TCP)      | [SINGLE_NODE][Sensor entry]                     |                      |
+
+#### Command
+
+**Purpose**: Control panels send commands to the server, which forwards them to the target nodes.
+
+**Top-level**: TRLV, request/response matching is needed in the case of multiple commands being sent on the same connection. Either by:
+- One control panel sending multiple commands
+- The server forwarding multiple commands to one node.
+
+| Type (hex)                | Direction                   | Expected value                                  | Response             |
+| ------------------------- | --------------------------- | ----------------------------------------------- | -------------------- |
 | `0x45` – COMMAND          | Control → Server (TCP)      | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR              |
 | `0x45` – COMMAND          | Server → Node (TCP)         | [ActuatorSelector][ActuatorState]               | ACK/ERR              |
 | `0x46` – ACK/ERROR        | Node/Server → Sender (TCP)  | [ACK/ERROR]                                     |                      |
