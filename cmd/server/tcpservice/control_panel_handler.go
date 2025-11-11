@@ -6,8 +6,8 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var handleControlPanel messageHandler = func(t *encoding.TRLV) messages.AckErrorMessage {
-	switch t.TLV.Type() {
+var handleControlPanel messageHandler = func(msg *encoding.Message) messages.AckErrorMessage {
+	switch msg.TLV.Type() {
 	case uint8(constants.COMMAND):
 		// todo: handle command
 		return messages.AckSuccessMessage()

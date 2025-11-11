@@ -6,8 +6,8 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var handleNode messageHandler = func(t *encoding.TRLV) messages.AckErrorMessage {
-	switch t.TLV.Type() {
+var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMessage {
+	switch msg.TLV.Type() {
 	case uint8(constants.SENSOR_UPDATE):
 		// todo: handle sensor update
 		return messages.AckSuccessMessage()
