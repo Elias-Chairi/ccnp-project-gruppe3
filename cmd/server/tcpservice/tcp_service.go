@@ -74,12 +74,10 @@ func readNextTRLV(conn net.Conn) (*encoding.TRLV, error) {
 				// timeout occurred without reading any data, continue reading holding the connection open indefinitely
 				continue
 			}
-
 			// if an error occurs during the top-level TRLV read, it cannot continue processing
 			// because it cannot determine if the next bytes belong to the current message or the next one.
 			return nil, fmt.Errorf("error reading TRLV from connection: %w", err)
 		}
-
 		return trlv, nil
 	}
 }
