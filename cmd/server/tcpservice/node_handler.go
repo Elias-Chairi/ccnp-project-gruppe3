@@ -53,12 +53,14 @@ func (r *NodeRegistry) GetAllNodes() []entity.Node {
 	defer r.mu.Unlock()
 
 	nodes := make([]entity.Node, len(r.nodes))
-	for i := range r.nodes {
+	i := 0
+	for id := range r.nodes {
 		nodes[i] = entity.Node{
-			ID:        i,
-			Sensors:   listOfValuesToListOfPointers(r.nodes[i].Sensors),
-			Actuators: listOfValuesToListOfPointers(r.nodes[i].Actuators),
+			ID:        id,
+			Sensors:   listOfValuesToListOfPointers(r.nodes[id].Sensors),
+			Actuators: listOfValuesToListOfPointers(r.nodes[id].Actuators),
 		}
+		i++
 	}
 	return nodes
 }
