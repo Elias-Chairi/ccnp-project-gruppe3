@@ -25,6 +25,7 @@ var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMes
 	}
 }
 
+// GetUniqueID generates a unique node ID not present in existingIDs.
 func GetUniqueID(existingIDs map[uint8]NodeInfo) uint8 {
 	newID := uint8(len(existingIDs) + 1)
 	for {
@@ -49,6 +50,8 @@ type NodeInfo struct {
 	Actuators []entity.Actuator[any]
 }
 
+
+// GetAllNodes returns a slice of all registered nodes. 
 func (r *NodeRegistry) GetAllNodes() []entity.Node {
 	r.mu.Lock()
 	defer r.mu.Unlock()
