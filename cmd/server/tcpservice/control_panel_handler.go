@@ -36,7 +36,7 @@ func (r *ControlPanelRegistry) AddControlPanel(conn net.Conn) {
 	r.nodes = append(r.nodes, conn)
 }
 
-// RemoveNodeID deletes the node ID and its associated connection.
+// RemoveControlPanel removes the specified control panel connection from the registry.
 func (r *ControlPanelRegistry) RemoveControlPanel(conn net.Conn) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
