@@ -73,8 +73,17 @@ func (s ActuatorSelector) IsValid() bool {
 	}
 }
 
-// Sensor Entry Fields, Range: 0x70-0x7F
+// Node field codes, Range: 0x30-0x3F
+type NodeField uint8
 
+const (
+	NODE_ENTRY       uint8     = 0x30
+	NODE_ID          NodeField = 0x31
+	SENSOR_ENTRIES   NodeField = 0x32
+	ACTUATOR_ENTRIES NodeField = 0x33
+)
+
+// Sensor Field codes, Range: 0x70-0x7F
 type SensorField uint8
 
 const (
@@ -85,7 +94,7 @@ const (
 	SENSOR_VALUE SensorField = 0x74
 )
 
-// Actuator Entry Fields, Range: 0x80-0x8F
+// Actuator Field codes, Range: 0x80-0x8F
 type ActuatorField uint8
 
 const (

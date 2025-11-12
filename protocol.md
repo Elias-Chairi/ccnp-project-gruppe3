@@ -56,6 +56,7 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 - MessageType: 0x40-0x4F (16 IDs)
 - NodeSelector: 0x50-0x5F (16 IDs)
 - ActuatorSelector: 0x60-0x6F (16 IDs)
+- NodeField: 0x30-0x3F (16 IDs)
 - SensorField: 0x70-0x7F (16 IDs)
 - ActuatorField: 0x80-0x8F (16 IDs)
 - DataType: 0x90-0x9F (16 IDs)
@@ -81,10 +82,10 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 **Top-level**: TLV, does not need request/response matching since it does not make sense to write multiple registrations on the same connection.
 
-| Type (hex)                | Direction              | Expected value                        | Response             |
-| ------------------------- | ---------------------- | ------------------------------------- | -------------------- |
-| `0x42` – REGISTER_NODE    | Node → Server (TCP)    | [List of Actuator and Sensor entries] | ACK[SINGLE_NODE]/ERR |
-| `0x43` – REGISTER_CONTROL | Control → Server (TCP) |                                       | ACK[NODE_LIST]       |
+| Type (hex)                | Direction              | Expected value                        | Response                  |
+| ------------------------- | ---------------------- | ------------------------------------- | ------------------------- |
+| `0x42` – REGISTER_NODE    | Node → Server (TCP)    | [List of Actuator and Sensor entries] | ACK[SINGLE_NODE]/ERR      |
+| `0x43` – REGISTER_CONTROL | Control → Server (TCP) |                                       | ACK[List of Node Entries] |
 
 #### Sensor Update
 
@@ -92,13 +93,13 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 **Top-level**: TLV, does not need request/response matching since updates do not expect a reply.
 
-| Type (hex)               | Direction              | Expected value                        | Response |
-| ------------------------ | ---------------------- | ------------------------------------- | -------- |
-| `0x44` – SENSOR_UPDATE   | Node → Server (TCP)    | [Sensor entry]                        |          |
-| `0x44` – SENSOR_UPDATE   | Server → Control (TCP) | [SINGLE_NODE][Sensor entry]           |          |
-| `0x45` – ACTUATOR_UPDATE | Server → Control (TCP) | [Actuator entry]                      |          |
-| `0x46` – NODE_ADDED      | Server → Control (TCP) | [List of Actuator and Sensor entries] |          |
-| `0x47` – NODE_REMOVED    | Server → Control (TCP) | [NodeSelector]                        |          |
+| Type (hex)               | Direction              | Expected value              | Response |
+| ------------------------ | ---------------------- | --------------------------- | -------- |
+| `0x44` – SENSOR_UPDATE   | Node → Server (TCP)    | [Sensor entry]              |          |
+| `0x44` – SENSOR_UPDATE   | Server → Control (TCP) | [SINGLE_NODE][Sensor entry] |          |
+| `0x45` – ACTUATOR_UPDATE | Server → Control (TCP) | [Actuator entry]            |          |
+| `0x46` – NODE_ADDED      | Server → Control (TCP) | [Node entry]                |          |
+| `0x47` – NODE_REMOVED    | Server → Control (TCP) | [SINGLE_NODE]               |          |
 
 #### Command
 
@@ -132,7 +133,17 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 | `0x63` | **ACTUATOR_TYPE**   | `FAN` (string)     | All actuators of type FAN.       |
 | `0x64` | **ALL_ACTUATORS**   | none               | All actuators on target node(s). |
 
-### Sensor Entry codes; Field code `0x70`: Sensor Entry
+### Node Field codes; Field code `0x30`: Node Field
+
+| Field Code | Data Type | Meaning                                                             |
+| ---------: | --------- | ------------------------------------------------------------------- |
+|     `0x31` | 1 byte    | **Local ID** within server.                                         |
+|     `0x32` |           | **Sensor Entries** (inner [data type TLV](#sensor-field-codes))     |
+|     `0x33` |           | **Actuator Entries** (inner [data type TLV](#actuator-field-codes)) |
+
+### Sensor Field codes
+
+**Sensor Entry**: code `0x70`
 
 | Field Code | Data Type    | Meaning                                             |
 | ---------: | ------------ | --------------------------------------------------- |
@@ -141,7 +152,9 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 |     `0x73` | UTF-8 string | **Unit** (°C, %, lux).                              |
 |     `0x74` |              | **Value** (inner [data type TLV](#data-type-codes)) |
 
-### Actuator Entry codes; Field code `0x80`: Actuator Entry
+### Actuator Field codes
+
+**Actuator Entry**: code `0x80`
 
 | Field Code | Data Type    | Meaning                                             |
 | ---------: | ------------ | --------------------------------------------------- |
