@@ -14,6 +14,7 @@ import (
 )
 
 var nodeRegistry = NewNodeRegistry()
+var controlPanelRegistry = ControlPanelRegistry{}
 
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
@@ -95,6 +96,9 @@ func handleRegistration(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
+		controlPanelRegistry.AddControlPanel(conn)
+		defer controlPanelRegistry.RemoveControlPanel(conn)
+
 		// todo: reply with current node list
 		return handleConn(conn, handleControlPanel)
 	default:
