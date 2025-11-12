@@ -46,9 +46,11 @@ func NewGreenhouse(node entity.Node, outdoor OutdoorConditions, onSensorUpdate f
 		onSensorUpdate: onSensorUpdate,
 	}
 }
-
+//iterating through sensors
+//with pointer to the element inside the slice
 func (g *Greenhouse) SimulateStep() {
-	for _, s := range g.Node.Sensors {
+	for i := range g.Node.Sensors {
+		s := &g.Node.Sensors[i]
 		switch s.Type {
 		case "TEMPERATURE":
 			g.updateTemperature(s)
@@ -74,7 +76,7 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 		}
 	}
 
-	actuators := make(map[string][]*entity.Actuator[any])
+	actuators := make(map[string][]entity.Actuator[any])
 	for _, a := range g.Node.Actuators {
 		actuators[a.Type] = append(actuators[a.Type], a)
 	}
@@ -180,7 +182,7 @@ func (g *Greenhouse) updateHumidity(sensor *entity.Sensor[any]) {
 	}
 
 	// Group actuators by type for easy access (same structure as updateTemperature)
-	actuators := make(map[string][]*entity.Actuator[any])
+	actuators := make(map[string][]entity.Actuator[any])
 	for _, a := range g.Node.Actuators {
 		actuators[a.Type] = append(actuators[a.Type], a)
 	}

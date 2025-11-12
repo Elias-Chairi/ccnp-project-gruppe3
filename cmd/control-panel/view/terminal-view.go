@@ -106,11 +106,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "space":
 			switch m.viewState {
 			case actuatorView:
-				// Toggle ON/OFF for the selected actuator
+				// Makes sure the selected node actually exists
 				if len(*m.nodes) > m.selectedNode {
-					acts := (*m.nodes)[m.selectedNode].Actuators
-					if len(acts) > 0 && m.cursor < len(acts) {
-						act := acts[m.cursor]
+
+					//Get a pointer to the selected greenhouse node.
+					//Pointer to change the actuators directly
+					node := &(*m.nodes)[m.selectedNode]
+					
+					// Check that cursor is within the actuator lsit range.
+					if m.cursor < len(node.Actuators) {
+						// Pointer to the selected actuator
+						act := &node.Actuators[m.cursor]
 						switch v := act.State.(type) {
 						case bool:
 							act.State = !v

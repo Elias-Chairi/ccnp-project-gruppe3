@@ -11,7 +11,7 @@ import (
 func main() {
 	node := entity.Node{
 		ID: 1,
-		Actuators: []*entity.Actuator[any]{
+		Actuators: []entity.Actuator[any]{
 			{ID: 1, Type: "HEATER", State: false},                  // off
 			{ID: 2, Type: "HEATER", Unit: "°C", State: float32(0)}, // 0 °C (no heating) (heater cannot make it colder)
 			{ID: 3, Type: "WINDOW", State: false},                  // closed
@@ -21,7 +21,7 @@ func main() {
 			{ID: 7, Type: "LIGHT", State: false},                   // off
 			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(0)},    // 0 lux
 		},
-		Sensors: []*entity.Sensor[any]{
+		Sensors: []entity.Sensor[any]{
 			{ID: 1, Type: "TEMPERATURE", Unit: "°C"},
 			{ID: 2, Type: "HUMIDITY", Unit: "%"},
 			{ID: 3, Type: "LIGHT", Unit: "lx"},
