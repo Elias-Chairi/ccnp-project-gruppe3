@@ -13,6 +13,8 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
+var nodeRegistry = NewNodeRegistry()
+
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
 	IP: net.ParseIP("127.0.0.1"),
@@ -78,12 +80,15 @@ func handleRegistration(conn net.Conn) error {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
 
-		id := CreateNodeID(conn)
-		// todo: send new node to control panel(s)
-		err = handleConn(conn, handleNode)
-		RemoveNodeID(id)
+		// create and store unique node ID
+		id := nodeRegistry.CreateNodeID(conn)
 
-		return err
+		// when function returns, remove node ID from registry
+		// TODO: handle reconnections properly
+		defer nodeRegistry.RemoveNodeID(id)
+		return handleConn(conn, handleNode)
+
+	// todo: send new node to control panel(s)
 
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(msg.TLV)

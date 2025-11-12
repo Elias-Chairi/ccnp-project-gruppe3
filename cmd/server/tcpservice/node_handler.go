@@ -2,15 +2,13 @@ package tcpservice
 
 import (
 	"net"
+	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
-
-// Map to assign node IDs to the net.Conn
-var nodeIDsMap = make(map[uint8]net.Conn)
 
 var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMessage {
 	switch msg.TLV.Type() {
@@ -27,14 +25,32 @@ var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMes
 	}
 }
 
-// Create and assign a new unique node ID
-func CreateNodeID(conn net.Conn) uint8 {
-	nodeID := util.GetUniqueID(nodeIDsMap)
-	nodeIDsMap[nodeID] = conn
+// NodeRegistry manages node IDs and their associated connections.
+type NodeRegistry struct {
+	mu    sync.RWMutex
+	nodes map[uint8]net.Conn
+}
+
+// NewNodeRegistry initializes and returns a new NodeRegistry.
+func NewNodeRegistry() *NodeRegistry {
+	return &NodeRegistry{
+		nodes: make(map[uint8]net.Conn),
+	}
+}
+
+// CreateNodeID assigns a unique node ID and stores the connection.
+func (r *NodeRegistry) CreateNodeID(conn net.Conn) uint8 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodeID := util.GetUniqueID(r.nodes)
+	r.nodes[nodeID] = conn
 	return nodeID
 }
 
-// RemoveNodeID deletes the node ID and its associated connection from the nodeIDsMap.
-func RemoveNodeID(id uint8) {
-	delete(nodeIDsMap, id)
+// RemoveNodeID deletes the node ID and its associated connection.
+func (r *NodeRegistry) RemoveNodeID(id uint8) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.nodes, id)
 }
