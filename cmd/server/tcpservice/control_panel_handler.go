@@ -28,7 +28,7 @@ type ControlPanelRegistry struct {
 	nodes []net.Conn
 }
 
-// CreateNodeID assigns a unique node ID and stores the connection.
+// AddControlPanel adds a control panel connection to the registry.
 func (r *ControlPanelRegistry) AddControlPanel(conn net.Conn) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
