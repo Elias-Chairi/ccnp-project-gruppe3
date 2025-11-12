@@ -20,8 +20,11 @@ const (
 	REGISTER_NODE    MessageType = 0x42
 	REGISTER_CONTROL MessageType = 0x43
 	SENSOR_UPDATE    MessageType = 0x44
-	COMMAND          MessageType = 0x45
-	ACK_ERROR        MessageType = 0x46
+	ACTUATOR_UPDATE  MessageType = 0x45
+	NODE_ADDED       MessageType = 0x46
+	NODE_REMOVED     MessageType = 0x47
+	COMMAND          MessageType = 0x48
+	ACK_ERROR        MessageType = 0x49
 )
 
 func (m MessageType) IsValid() bool {

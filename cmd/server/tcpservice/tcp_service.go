@@ -85,11 +85,13 @@ func handleRegistration(conn net.Conn) error {
 		id := nodeRegistry.CreateNodeID(conn)
 
 		// when function returns, remove node ID from registry
-		// TODO: handle reconnections properly
-		defer nodeRegistry.RemoveNodeID(id)
-		return handleConn(conn, handleNode)
+		// todo: send new node to control panel(s)
 
-	// todo: send new node to control panel(s)
+		defer func() {
+			nodeRegistry.RemoveNodeID(id)
+			// todo: send delete node to control panel(s)
+		}()
+		return handleConn(conn, handleNode)
 
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(msg.TLV)
