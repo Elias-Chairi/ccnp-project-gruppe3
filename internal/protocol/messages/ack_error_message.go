@@ -3,6 +3,7 @@ package messages
 import (
 	"fmt"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
@@ -22,6 +23,28 @@ func AckSuccessMessage() AckErrorMessage {
 		Code: constants.ACK_SUCCESS,
 		Data: "",
 	}
+}
+
+// NewAckNodeListMessage creates an ACK_SUCCESS message containing a list of nodes.
+func NewAckNodeListMessage(nodes []entity.Node) (*AckErrorMessage, error) {
+	var tlvs []encoding.TLV
+	for _, node := range nodes {
+		tlv, err := encoding.EncodeNodeEntry(node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode node entry: %w", err)
+		}
+		tlvs = append(tlvs, tlv)
+	}
+
+	value := encoding.EncodeMultipleTLVs(tlvs)
+	return &AckErrorMessage{
+		Code: constants.ACK_SUCCESS,
+		Data: string(value),
+	}, nil
+}
+
+func (m AckErrorMessage) Type() constants.MessageType {
+	return constants.ACK_ERROR
 }
 
 // Encode encodes the ACK/ERROR message to bytes.

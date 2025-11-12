@@ -20,8 +20,11 @@ const (
 	REGISTER_NODE    MessageType = 0x42
 	REGISTER_CONTROL MessageType = 0x43
 	SENSOR_UPDATE    MessageType = 0x44
-	COMMAND          MessageType = 0x45
-	ACK_ERROR        MessageType = 0x46
+	ACTUATOR_UPDATE  MessageType = 0x45
+	NODE_ADDED       MessageType = 0x46
+	NODE_REMOVED     MessageType = 0x47
+	COMMAND          MessageType = 0x48
+	ACK_ERROR        MessageType = 0x49
 )
 
 func (m MessageType) IsValid() bool {
@@ -70,8 +73,17 @@ func (s ActuatorSelector) IsValid() bool {
 	}
 }
 
-// Sensor Entry Fields, Range: 0x70-0x7F
+// Node field codes, Range: 0x30-0x3F
+type NodeField uint8
 
+const (
+	NODE_ENTRY       uint8     = 0x30
+	NODE_ID          NodeField = 0x31
+	SENSOR_ENTRIES   NodeField = 0x32
+	ACTUATOR_ENTRIES NodeField = 0x33
+)
+
+// Sensor Field codes, Range: 0x70-0x7F
 type SensorField uint8
 
 const (
@@ -82,7 +94,7 @@ const (
 	SENSOR_VALUE SensorField = 0x74
 )
 
-// Actuator Entry Fields, Range: 0x80-0x8F
+// Actuator Field codes, Range: 0x80-0x8F
 type ActuatorField uint8
 
 const (

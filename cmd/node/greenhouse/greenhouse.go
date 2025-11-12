@@ -24,7 +24,7 @@ const (
 
 	DefaultHumidifierHumidity float32 = 80.0 // default humidifier target humidity (80%)
 
-	LightChangePerWindowStep float32 = 0.05  // 5% of outdoor light passes per fully open window
+	LightChangePerWindowStep float32 = 0.05 // 5% of outdoor light passes per fully open window
 )
 
 type OutdoorConditions struct {
@@ -53,9 +53,9 @@ func (g *Greenhouse) SimulateStep() {
 		case "TEMPERATURE":
 			g.updateTemperature(s)
 		case "HUMIDITY":
-			 g.updateHumidity(s)
+			g.updateHumidity(s)
 		case "LIGHT":
-			 g.updateLightLevel(s)
+			g.updateLightLevel(s)
 		default:
 			log.Println("Unknown sensor type:", s.Type)
 		}
@@ -163,13 +163,11 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 	}
 }
 
-
-
 // updateHumidity simulates how the greenhouse's humidity changes during one simulation step.
 // It is affected by outdoor humidity, open windows, running fans, and active heaters.
 // Windows and fans move the humidity toward the outdoor value, while heaters dry the air slightly.
 func (g *Greenhouse) updateHumidity(sensor *entity.Sensor[any]) {
-	
+
 	// Get current humidity value from the sensor
 	var currentHum float32
 	if sensor.Value != nil {
@@ -244,8 +242,6 @@ func (g *Greenhouse) updateHumidity(sensor *entity.Sensor[any]) {
 	}
 }
 
-
-
 // updateLightLevel updates the greenhouse's light sensor reading (in lux)
 // based on outdoor light and artificial lighting.
 // The brightest source (natural or artificial) determines the indoor light level.
@@ -292,7 +288,3 @@ func (g *Greenhouse) updateLightLevel(sensor *entity.Sensor[any]) {
 		g.onSensorUpdate(sensor)
 	}
 }
-
-
-
-

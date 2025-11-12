@@ -14,6 +14,7 @@ import (
 )
 
 var nodeRegistry = NewNodeRegistry()
+var controlPanelRegistry = ControlPanelRegistry{}
 
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
@@ -75,27 +76,35 @@ func handleRegistration(conn net.Conn) error {
 	// handle based on registration type
 	switch msg.TLV.Type() {
 	case uint8(constants.REGISTER_NODE):
-		_, err := messages.DecodeRegisterNodeMessage(msg.TLV)
+		msg, err := messages.DecodeRegisterNodeMessage(msg.TLV)
 		if err != nil {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
 
 		// create and store unique node ID
-		id := nodeRegistry.CreateNodeID(conn)
+		id := nodeRegistry.CreateNodeID(conn, msg.Sensors, msg.Actuators)
 
 		// when function returns, remove node ID from registry
-		// TODO: handle reconnections properly
-		defer nodeRegistry.RemoveNodeID(id)
-		return handleConn(conn, handleNode)
+		// todo: send new node to control panel(s)
 
-	// todo: send new node to control panel(s)
+		defer func() {
+			nodeRegistry.RemoveNodeID(id)
+			// todo: send delete node to control panel(s)
+		}()
+		return handleConn(conn, handleNode)
 
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(msg.TLV)
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
-		// todo: reply with current node list
+		controlPanelRegistry.AddControlPanel(conn)
+		defer controlPanelRegistry.RemoveControlPanel(conn)
+
+		msg, err := messages.NewAckNodeListMessage(nodeRegistry.GetAllNodes())
+		if err == nil {
+			_ = sendResponse(conn, msg)
+		}
 		return handleConn(conn, handleControlPanel)
 	default:
 		return fmt.Errorf("invalid registration type %v", msg.TLV.Type())
@@ -123,8 +132,8 @@ func handleConn(conn net.Conn, f messageHandler) error {
 	}
 }
 
-// sendResponse encodes and sends an AckErrorMessage response over the connection.
-func sendResponse(conn net.Conn, message messages.AckErrorMessage) error {
+// sendResponse encodes and sends a message over the connection.
+func sendResponse(conn net.Conn, message messages.Message) error {
 	encodedMsg, err := message.Encode()
 	if err != nil {
 		return fmt.Errorf("failed to encode response message: %w", err)
