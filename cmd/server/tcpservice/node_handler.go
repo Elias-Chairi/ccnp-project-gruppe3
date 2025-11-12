@@ -51,7 +51,7 @@ type NodeInfo struct {
 }
 
 
-// GetAllNodes returns a slice of all registered nodes. 
+// GetAllNodes returns a slice of all registered nodes.
 func (r *NodeRegistry) GetAllNodes() []entity.Node {
 	r.mu.Lock()
 	defer r.mu.Unlock()

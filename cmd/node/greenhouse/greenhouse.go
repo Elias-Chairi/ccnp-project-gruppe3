@@ -46,8 +46,8 @@ func NewGreenhouse(node entity.Node, outdoor OutdoorConditions, onSensorUpdate f
 		onSensorUpdate: onSensorUpdate,
 	}
 }
-//iterating through sensors
-//with pointer to the element inside the slice
+
+// Iterate through sensors using a pointer to the element inside the slice.
 func (g *Greenhouse) SimulateStep() {
 	for i := range g.Node.Sensors {
 		s := &g.Node.Sensors[i] // pointer to the real sensor

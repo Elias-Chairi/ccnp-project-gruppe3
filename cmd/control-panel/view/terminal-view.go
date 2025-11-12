@@ -109,11 +109,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Makes sure the selected node actually exists
 				if len(*m.nodes) > m.selectedNode {
 
-					//Get a pointer to the selected greenhouse node.
-					//Pointer to change the actuators directly
+					// Get a pointer to the selected greenhouse node.
+					// Pointer to change the actuators directly
 					node := &(*m.nodes)[m.selectedNode]
-					
-					// Check that cursor is within the actuator lsit range.
+
+					// Checks that cursor is within the actuator list range.
 					if m.cursor < len(node.Actuators) {
 						// Pointer to the selected actuator
 						act := &node.Actuators[m.cursor]
