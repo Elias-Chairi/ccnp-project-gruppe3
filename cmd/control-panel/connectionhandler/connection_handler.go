@@ -48,7 +48,7 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 	}
 
 	if decodedmsg.IsError() {
-		return nil, fmt.Errorf("Errorcode %d: register response is error: %s", decodedmsg.Code, decodedmsg.Data)
+		return nil, fmt.Errorf("errorcode %d: register response is error: %s", decodedmsg.Code, decodedmsg.Data)
 	}
 
 	tlvs, err := encoding.DecodeMultipleTLVs([]byte(decodedmsg.Data))
