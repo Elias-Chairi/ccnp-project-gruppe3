@@ -271,7 +271,7 @@ func renderLoading(msg string) string {
 }
 
 func renderError(err error) string {
-	title := "Error occured"
+	title := "Error occurred"
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#aa1100ff")).Render(title)
 	s += "\n-----------------------------\n"
 	s += fmt.Sprintf("Error: %s\n", err.Error())
