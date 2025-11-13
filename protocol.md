@@ -133,7 +133,9 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 | `0x63` | **ACTUATOR_TYPE**   | `FAN` (string)     | All actuators of type FAN.       |
 | `0x64` | **ALL_ACTUATORS**   | none               | All actuators on target node(s). |
 
-### Node Field codes; Field code `0x30`: Node Field
+### Node Field codes
+
+**Node Entry**: code `0x30`
 
 | Field Code | Data Type | Meaning                                                             |
 | ---------: | --------- | ------------------------------------------------------------------- |

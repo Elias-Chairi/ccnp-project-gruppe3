@@ -70,10 +70,11 @@ func DecodeActuatorEntry(t TLV) (*entity.Actuator[any], error) {
 	for _, innerTLV := range tlvs {
 		switch constants.ActuatorField(innerTLV.Type()) {
 		case constants.ACTUATOR_ID:
-			if innerTLV.Length() != 1 {
-				return nil, fmt.Errorf("invalid actuator ID length")
+			id, err := DecodeByte(innerTLV.Value())
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode actuator ID: %w", err)
 			}
-			a.ID = innerTLV.Value()[0]
+			a.ID = id
 		case constants.ACTUATOR_TYPE_FIELD:
 			a.Type = string(innerTLV.Value())
 		case constants.ACTUATOR_UNIT:
