@@ -25,6 +25,7 @@ var handleNode messageHandler = func(msg *encoding.Message) messages.AckErrorMes
 	}
 }
 
+// GetUniqueID generates a unique node ID not present in existingIDs.
 func GetUniqueID(existingIDs map[uint8]NodeInfo) uint8 {
 	newID := uint8(len(existingIDs) + 1)
 	for {
@@ -42,35 +43,32 @@ type NodeRegistry struct {
 	nodes map[uint8]NodeInfo
 }
 
+// NodeInfo holds information about a registered node.
 type NodeInfo struct {
 	conn      net.Conn
 	Sensors   []entity.Sensor[any]
 	Actuators []entity.Actuator[any]
 }
 
+
+// GetAllNodes returns a slice of all registered nodes.
 func (r *NodeRegistry) GetAllNodes() []entity.Node {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	nodes := make([]entity.Node, len(r.nodes))
 	i := 0
-	for id := range r.nodes {
+	for id, info := range r.nodes {
+		// create entity.Node from NodeInfo
+		// registry holds data about each node
 		nodes[i] = entity.Node{
 			ID:        id,
-			Sensors:   listOfValuesToListOfPointers(r.nodes[id].Sensors),
-			Actuators: listOfValuesToListOfPointers(r.nodes[id].Actuators),
+			Sensors:   info.Sensors,
+			Actuators: info.Actuators,
 		}
 		i++
 	}
 	return nodes
-}
-
-func listOfValuesToListOfPointers[T any](values []T) []*T {
-	pointers := make([]*T, len(values))
-	for i := range values {
-		pointers[i] = &values[i]
-	}
-	return pointers
 }
 
 // NewNodeRegistry initializes and returns a new NodeRegistry.
