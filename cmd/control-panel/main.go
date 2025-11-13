@@ -88,7 +88,7 @@ func main() {
 	}
 
 	go func() {
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 3) // simulate loading time
 		err := c.Connect()
 		if err != nil {
 			t.FailedToConnectToServer(c.ServerIPs[0])
