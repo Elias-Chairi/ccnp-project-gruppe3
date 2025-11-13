@@ -3,6 +3,8 @@ package view
 import (
 	"fmt"
 	"os"
+    "net"
+
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
@@ -13,15 +15,34 @@ import (
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	Nodes []entity.Node
+	nodes []entity.Node
+	teaProgram *tea.Program
 }
 
-func (v *TerminalView) Start() {
-	p := tea.NewProgram(initialModel(v.Nodes))
+func (t *TerminalView) AddNodes(nodes []entity.Node)  {
+	t.nodes = append(t.nodes, nodes...)
+
+}
+
+
+
+
+func (t *TerminalView) Start() {
+	p := tea.NewProgram(initialModel(t.nodes))
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
+}
+
+type failedToConnectToServer struct {
+	IP net.IP
+}
+
+func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
+	t.teaProgram.Send(failedToConnectToServer{
+			IP: IP,
+	})
 }
 
 // --------------------- Bubble Tea Model ---------------------
@@ -44,6 +65,7 @@ type model struct {
 	nodes        *[]entity.Node
 	selectedNode int
 	stack        *util.Stack[model] // used to manage navigation history
+	err error
 }
 
 func initialModel(nodes []entity.Node) tea.Model {
@@ -58,13 +80,15 @@ func initialModel(nodes []entity.Node) tea.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	m.stack.Push(m) // Push the initial state onto the stack
-	return nil
+	return nil	
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case failedToConnectToServer:
+		m.err = fmt.Errorf("Failed to connect to server with IP %v", msg.IP.String())
+		
 	// Is it a key press?
 	case tea.KeyMsg:
 
@@ -191,7 +215,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // This function is responsible for rendering the different views based on the current state.
 func (m model) View() string {
-
+	if m.err != nil {
+		return renderError(m.err)
+	}
 	switch m.viewState {
 	case mainMenu:
 		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
@@ -206,6 +232,17 @@ func (m model) View() string {
 	default:
 		return "Unknown state"
 	}
+}
+
+func renderError(err error) string {
+	title := "Error occured"
+	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#aa1100ff")).Render(title)
+	s += "\n-----------------------------\n"
+	s += fmt.Sprintf("Error: %s\n", err.Error())
+
+
+	s += "\nPress ↑/↓ and Enter to select. Press backspace to go back or q to quit.\n"
+	return s
 }
 
 // Renders a menu with the given title, choices, cursor position, and message.

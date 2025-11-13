@@ -14,7 +14,7 @@ import (
 )
 
 var nodeRegistry = NewNodeRegistry()
-var controlPanelRegistry = ControlPanelRegistry{}
+var controlPanelRegistry = &ControlPanelRegistry{}
 
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
