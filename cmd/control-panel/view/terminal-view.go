@@ -18,34 +18,32 @@ type TerminalView struct {
 	teaProgram *tea.Program
 }
 
-func (t *TerminalView) AddNodes(nodes []entity.Node) {
-	t.nodes = append(t.nodes, nodes...)
-
-}
-
 func (t *TerminalView) Start() {
-	t.teaProgram = tea.NewProgram(initialModel(t.nodes))
+	t.teaProgram = tea.NewProgram(initialModel())
 	if _, err := t.teaProgram.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
 }
 
+type setNodes []entity.Node
+
+func (t *TerminalView) SetInitialNodes(nodes []entity.Node) {
+	t.nodes = nodes
+	t.teaProgram.Send(setNodes(nodes))
+}
+
 type setErr error
 
 func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
-	t.teaProgram.Send(setErr(fmt.Errorf("Failed to connect to server with IP %v", IP.String())))
+	t.teaProgram.Send(setErr(fmt.Errorf("failed to connect to server with IP %v", IP.String())))
 }
 
 func (t *TerminalView) FailedToRegisterToServer(IP net.IP) {
-	t.teaProgram.Send(setErr(fmt.Errorf("Failed to register to server with IP %v", IP.String())))
+	t.teaProgram.Send(setErr(fmt.Errorf("failed to register to server with IP %v", IP.String())))
 }
 
 type setLoadingMessage string
-
-func (t *TerminalView) StartLoadingInitialNodes() {
-	t.teaProgram.Send(setLoadingMessage("Loading Nodes"))
-}
 
 func (t *TerminalView) EndLoading() {
 	t.teaProgram.Send(setLoadingMessage(""))
@@ -68,25 +66,25 @@ type model struct {
 	message      string
 	choices      []string
 	cursor       int
-	nodes        *[]entity.Node
+	nodes        []entity.Node
 	selectedNode int
 	stack        *util.Stack[model] // used to manage navigation history
 	err          error
 	// spinner 	 spinner.Model
 	loadingmsg string
-	loading    bool
+	// loading    bool
 }
 
-func initialModel(nodes []entity.Node) tea.Model {
+func initialModel() tea.Model {
 	return model{
 		viewState:    mainMenu,
 		message:      "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
 		choices:      []string{"Manage Greenhouses", "Exit"},
-		nodes:        &nodes,
+		nodes:        nil,
 		stack:        &util.Stack[model]{},
 		selectedNode: 0,
-		loadingmsg: "",
-		err: nil,
+		loadingmsg:   "Loading Nodes",
+		err:          nil,
 	}
 }
 
@@ -97,22 +95,25 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case setNodes:
+		m.nodes = ([]entity.Node)(msg)
+
 	case setErr:
 		m.err = error(msg)
 
 	case setLoadingMessage:
 		m.loadingmsg = string(msg)
-	
+
 	// Is it a key press?
 	case tea.KeyMsg:
 
-		switch msg.String() {	
+		switch msg.String() {
 		// These keys should exit the program.
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
 
-		if (m.err != nil || m.loadingmsg != "") {
+		if m.err != nil || m.loadingmsg != "" {
 			break
 		}
 
@@ -130,8 +131,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			limit := 0
 			switch m.viewState {
 			case actuatorView:
-				if m.selectedNode < len(*m.nodes) {
-					node := (*m.nodes)[m.selectedNode]
+				if m.selectedNode < len(m.nodes) {
+					node := (m.nodes)[m.selectedNode]
 					limit = len(node.Actuators)
 				}
 			default:
@@ -147,15 +148,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = *nm
 			}
 
-		case "enter", "space":
+		case "enter", " ":
 			switch m.viewState {
 			case actuatorView:
 				// Makes sure the selected node actually exists
-				if len(*m.nodes) > m.selectedNode {
+				if len(m.nodes) > m.selectedNode {
 
 					// Get a pointer to the selected greenhouse node.
 					// Pointer to change the actuators directly
-					node := &(*m.nodes)[m.selectedNode]
+					node := &(m.nodes[m.selectedNode])
 
 					// Checks that cursor is within the actuator list range.
 					if m.cursor < len(node.Actuators) {
@@ -195,8 +196,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Go to greenhouse list
 
 					m.viewState = greenhouseList
-					m.choices = make([]string, len(*m.nodes))
-					for i := range *m.nodes {
+					m.choices = make([]string, len(m.nodes))
+					for i := range m.nodes {
 						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
 					}
 					m.cursor = 0
@@ -206,7 +207,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			case greenhouseList:
-				if m.cursor < len(*m.nodes) {
+				if m.cursor < len(m.nodes) {
 					m.selectedNode = m.cursor
 					m.viewState = connectedMenu
 					m.choices = []string{"View Sensor Data", "View/Change Actuator Status"}
@@ -251,7 +252,7 @@ func (m model) View() string {
 	case connectedMenu:
 		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
 	case sensorView:
-		return renderSensorView(*m.nodes, m.selectedNode)
+		return renderSensorView(m.nodes, m.selectedNode)
 	case actuatorView:
 		return renderActuatorView(m)
 	default:
@@ -327,14 +328,14 @@ func renderSensorView(nodes []entity.Node, selectedNode int) string {
 }
 
 func renderActuatorView(m model) string {
-	if m.selectedNode >= len(*m.nodes) {
+	if m.selectedNode >= len(m.nodes) {
 		return fmt.Sprintf("Greenhouse %c not found.\n", 'A'+m.selectedNode)
 	}
 
 	s := fmt.Sprintf("  Actuator Status for Greenhouse %c\n", 'A'+m.selectedNode)
 	s += "-----------------------------------\n"
 
-	node := (*m.nodes)[m.selectedNode]
+	node := (m.nodes)[m.selectedNode]
 	if len(node.Actuators) == 0 {
 		s += "No actuators found.\n"
 		return s
@@ -344,7 +345,7 @@ func renderActuatorView(m model) string {
 		Bold(true).
 		Foreground(lipgloss.Color("#e1ce40ff"))
 
-	for i, act := range (*m.nodes)[m.selectedNode].Actuators {
+	for i, act := range (m.nodes)[m.selectedNode].Actuators {
 
 		var style lipgloss.Style
 

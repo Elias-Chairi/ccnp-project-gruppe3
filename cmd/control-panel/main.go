@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+
 	// "fmt"
 	"log"
 	"time"
@@ -86,25 +87,22 @@ func main() {
 		ServerIPs: ipList,
 	}
 
-	
 	go func() {
-		time.Sleep(time.Second*5)
+		time.Sleep(time.Second * 3)
 		err := c.Connect()
 		if err != nil {
 			t.FailedToConnectToServer(c.ServerIPs[0])
-			return 
+			return
 		}
 
-		_, err = c.Register()
+		nodes, err := c.Register()
 		if err != nil {
 			t.FailedToRegisterToServer(c.ServerIPs[0])
 			return
 		}
+		t.SetInitialNodes(*nodes)
 		t.EndLoading()
 	}()
 
 	t.Start()
-	t.StartLoadingInitialNodes()
-
-
 }

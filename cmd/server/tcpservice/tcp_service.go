@@ -103,7 +103,10 @@ func handleRegistration(conn net.Conn) error {
 
 		msg, err := messages.NewAckNodeListMessage(nodeRegistry.GetAllNodes())
 		if err == nil {
-			_ = sendResponse(conn, msg)
+			encoded, err := msg.Encode()
+			if err == nil {
+				_, _ = conn.Write(encoded)
+			}
 		}
 		return handleConn(conn, handleControlPanel)
 	default:
