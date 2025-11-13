@@ -8,6 +8,7 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
+
 	// "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
 	// "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
@@ -82,22 +83,28 @@ func main() {
 	t := &view.TerminalView{}
 
 	c := &connectionhandler.ConnectionHandler{
-		ServerIPs: ipList, 
+		ServerIPs: ipList,
 	}
 
-	t.StartLoading(c.ServerIPs[0].String())
-	go t.Start()
+	
+	go func() {
+		time.Sleep(time.Second*5)
+		err := c.Connect()
+		if err != nil {
+			t.FailedToConnectToServer(c.ServerIPs[0])
+			return 
+		}
 
-	err := c.Connect()
-	if err != nil {
-		t.FailedToConnectToServer(c.ServerIPs[0])
-	}
-	// nodes, err := c.Register()
-	// if err != nil {
-	// 	t.failedToRegisterToServer(c.ServerIPs[0])
-	// }
-	t.EndLoading()
+		_, err = c.Register()
+		if err != nil {
+			t.FailedToRegisterToServer(c.ServerIPs[0])
+			return
+		}
+		t.EndLoading()
+	}()
 
+	t.Start()
+	t.StartLoadingInitialNodes()
 
 
 }

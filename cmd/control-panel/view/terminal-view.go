@@ -2,9 +2,8 @@ package view
 
 import (
 	"fmt"
+	"net"
 	"os"
-    "net"
-
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
@@ -15,34 +14,37 @@ import (
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	nodes []entity.Node
+	nodes      []entity.Node
 	teaProgram *tea.Program
 }
 
-func (t *TerminalView) AddNodes(nodes []entity.Node)  {
+func (t *TerminalView) AddNodes(nodes []entity.Node) {
 	t.nodes = append(t.nodes, nodes...)
 
 }
 
-
 func (t *TerminalView) Start() {
-	p := tea.NewProgram(initialModel(t.nodes))
-	if _, err := p.Run(); err != nil {
+	t.teaProgram = tea.NewProgram(initialModel(t.nodes))
+	if _, err := t.teaProgram.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
 	}
 }
 
-type setErr error 
+type setErr error
 
 func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
 	t.teaProgram.Send(setErr(fmt.Errorf("Failed to connect to server with IP %v", IP.String())))
 }
 
+func (t *TerminalView) FailedToRegisterToServer(IP net.IP) {
+	t.teaProgram.Send(setErr(fmt.Errorf("Failed to register to server with IP %v", IP.String())))
+}
+
 type setLoadingMessage string
 
-func (t *TerminalView) StartLoading(msg string) {
-	t.teaProgram.Send(setLoadingMessage(msg))
+func (t *TerminalView) StartLoadingInitialNodes() {
+	t.teaProgram.Send(setLoadingMessage("Loading Nodes"))
 }
 
 func (t *TerminalView) EndLoading() {
@@ -69,10 +71,10 @@ type model struct {
 	nodes        *[]entity.Node
 	selectedNode int
 	stack        *util.Stack[model] // used to manage navigation history
-	err 		 error
+	err          error
 	// spinner 	 spinner.Model
-	loadingmsg   string
-	loading 	 bool
+	loadingmsg string
+	loading    bool
 }
 
 func initialModel(nodes []entity.Node) tea.Model {
@@ -83,11 +85,13 @@ func initialModel(nodes []entity.Node) tea.Model {
 		nodes:        &nodes,
 		stack:        &util.Stack[model]{},
 		selectedNode: 0,
+		loadingmsg: "",
+		err: nil,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return nil	
+	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -97,17 +101,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = error(msg)
 
 	case setLoadingMessage:
-		m.loadingmsg = string(msg)	
-		
+		m.loadingmsg = string(msg)
+	
 	// Is it a key press?
 	case tea.KeyMsg:
 
-		// Cool, what was the actual key pressed?
-		switch msg.String() {
-
+		switch msg.String() {	
 		// These keys should exit the program.
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		}
+
+		if (m.err != nil || m.loadingmsg != "") {
+			break
+		}
+
+		// Cool, what was the actual key pressed?
+		switch msg.String() {
 
 		// The "up" and "w" keys move the cursor up
 		case "up", "w", "k":
@@ -264,7 +274,6 @@ func renderError(err error) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#aa1100ff")).Render(title)
 	s += "\n-----------------------------\n"
 	s += fmt.Sprintf("Error: %s\n", err.Error())
-
 
 	s += "\nPress ↑/↓ and Enter to select. Press backspace to go back or q to quit.\n"
 	return s
