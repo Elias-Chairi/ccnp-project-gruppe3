@@ -33,7 +33,7 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 
 	_, err = c.conn.Write(encoded)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write to conn %w", err)
+		return nil, fmt.Errorf("Failed to write to conn: %w", err)
 	}
 
 	readmsg, err := encoding.ReadNextMessage(c.conn, time.Second*10)
