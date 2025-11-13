@@ -3,6 +3,12 @@ package connectionhandler
 import (
 	"fmt"
 	"net"
+	"time"
+
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 )
 
 
@@ -18,6 +24,46 @@ func (c *ConnectionHandler) Connect() error {
 	}
 	c.conn = conn
 	return nil
+}
+
+func (c *ConnectionHandler) Register() error {
+	msg := messages.NewRegisterControlMessage()
+	encoded, err := msg.Encode()
+	if err != nil {
+		return fmt.Errorf("Failed to encode: %w", err)
+	}
+	
+	_, err = c.conn.Write(encoded)
+	if err != nil {
+		return fmt.Errorf("Failed to write to conn %w", err)
+	}
+	
+	readmsg, err := encoding.ReadNextMessage(c.conn, time.Second*5) 
+	
+	if err != nil {
+		return fmt.Errorf("Failed to read next message: %w", err)
+	}
+	
+	decodedmsg, err := messages.DecodeAckErrorMessage(readmsg.TLV)
+	if err !=  nil {
+		return fmt.Errorf("Failed to decode ack error message: %w", err)
+	}
+
+	if decodedmsg.IsError() {
+		return fmt.Errorf("Errorcode %d: register response is error: %s", decodedmsg.Code, decodedmsg.Data)
+	}
+
+	tlvs, err := encoding.DecodeMultipleTLVs([]byte(decodedmsg.Data))
+	if err != nil {
+		return fmt.Errorf("Failed to decode message: %w", err)
+	}
+
+	var nodes []entity.Node
+
+	for _, tlv := range tlvs {
+		encoding.Decode
+	}
+
 }
 
 

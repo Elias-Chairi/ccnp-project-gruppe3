@@ -86,13 +86,18 @@ func main() {
 	}
 
 	t.StartLoading(c.ServerIPs[0].String())
-
+	go t.Start()
 
 	err := c.Connect()
 	if err != nil {
-		log.Printf("Failed to connect to server: %v", err)
+		t.FailedToConnectToServer(c.ServerIPs[0])
 	}
+	err = c.Register()
+	if err != nil {
+		t.failedToRegisterToServer(c.ServerIPs[0])
+	}
+	t.EndLoading()
 
-	
-	
+
+
 }
