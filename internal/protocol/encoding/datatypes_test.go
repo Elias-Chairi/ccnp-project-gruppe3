@@ -230,7 +230,7 @@ func TestEncodeAny_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// unsupported type
-	_, err = encoding.EncodeAny(int(42))
+	_, err = encoding.EncodeAny(struct{}{})
 	assert.Error(t, err)
 
 	// slice of unsupported type
