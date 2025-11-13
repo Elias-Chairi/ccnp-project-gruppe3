@@ -25,8 +25,6 @@ func (t *TerminalView) AddNodes(nodes []entity.Node)  {
 }
 
 
-
-
 func (t *TerminalView) Start() {
 	p := tea.NewProgram(initialModel(t.nodes))
 	if _, err := p.Run(); err != nil {
@@ -35,14 +33,20 @@ func (t *TerminalView) Start() {
 	}
 }
 
-type failedToConnectToServer struct {
-	IP net.IP
-}
+type setErr error 
 
 func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
-	t.teaProgram.Send(failedToConnectToServer{
-			IP: IP,
-	})
+	t.teaProgram.Send(setErr(fmt.Errorf("Failed to connect to server with IP %v", IP.String())))
+}
+
+type setLoadingMessage string
+
+func (t *TerminalView) StartLoading(msg string) {
+	t.teaProgram.Send(setLoadingMessage(msg))
+}
+
+func (t *TerminalView) EndLoading() {
+	t.teaProgram.Send(setLoadingMessage(""))
 }
 
 // --------------------- Bubble Tea Model ---------------------
@@ -65,7 +69,10 @@ type model struct {
 	nodes        *[]entity.Node
 	selectedNode int
 	stack        *util.Stack[model] // used to manage navigation history
-	err error
+	err 		 error
+	// spinner 	 spinner.Model
+	loadingmsg   string
+	loading 	 bool
 }
 
 func initialModel(nodes []entity.Node) tea.Model {
@@ -86,8 +93,11 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
-	case failedToConnectToServer:
-		m.err = fmt.Errorf("Failed to connect to server with IP %v", msg.IP.String())
+	case setErr:
+		m.err = error(msg)
+
+	case setLoadingMessage:
+		m.loadingmsg = string(msg)	
 		
 	// Is it a key press?
 	case tea.KeyMsg:
@@ -218,6 +228,11 @@ func (m model) View() string {
 	if m.err != nil {
 		return renderError(m.err)
 	}
+
+	if m.loadingmsg != "" {
+		return renderLoading(m.loadingmsg)
+	}
+
 	switch m.viewState {
 	case mainMenu:
 		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
@@ -232,6 +247,16 @@ func (m model) View() string {
 	default:
 		return "Unknown state"
 	}
+}
+
+func renderLoading(msg string) string {
+	title := "Loading"
+	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#008eaaff")).Render(title)
+	s += "\n-----------------------------\n"
+	s += msg + "\n"
+
+	s += "\nPress ↑/↓ and Enter to select. Press backspace to go back or q to quit.\n"
+	return s
 }
 
 func renderError(err error) string {
