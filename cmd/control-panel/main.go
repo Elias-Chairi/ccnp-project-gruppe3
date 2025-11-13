@@ -92,10 +92,10 @@ func main() {
 	if err != nil {
 		t.FailedToConnectToServer(c.ServerIPs[0])
 	}
-	err = c.Register()
-	if err != nil {
-		t.failedToRegisterToServer(c.ServerIPs[0])
-	}
+	// nodes, err := c.Register()
+	// if err != nil {
+	// 	t.failedToRegisterToServer(c.ServerIPs[0])
+	// }
 	t.EndLoading()
 
 
