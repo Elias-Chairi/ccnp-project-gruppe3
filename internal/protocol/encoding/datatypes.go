@@ -151,3 +151,11 @@ func EncodeByteList(values []uint8) []byte {
 func DecodeByteList(data []byte) []uint8 {
 	return data
 }
+
+// DecodeByte decodes a single byte value.
+func DecodeByte(data []byte) (uint8, error) {
+	if len(data) != 1 {
+		return 0, fmt.Errorf("invalid byte length: %d", len(data))
+	}
+	return data[0], nil
+}
