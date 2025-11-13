@@ -18,6 +18,7 @@ type TerminalView struct {
 	teaProgram *tea.Program
 }
 
+// Start launches the terminal-based user interface.
 func (t *TerminalView) Start() {
 	t.teaProgram = tea.NewProgram(initialModel())
 	if _, err := t.teaProgram.Run(); err != nil {
@@ -28,6 +29,9 @@ func (t *TerminalView) Start() {
 
 type setNodes []entity.Node
 
+// SetInitialNodes sets the initial list of nodes to be displayed in the terminal after registration.
+//
+// Panics if the tea program is not started.
 func (t *TerminalView) SetInitialNodes(nodes []entity.Node) {
 	t.nodes = nodes
 	t.teaProgram.Send(setNodes(nodes))
@@ -35,16 +39,25 @@ func (t *TerminalView) SetInitialNodes(nodes []entity.Node) {
 
 type setErr error
 
+// FailedToConnectToServer notifies the terminal view of a failed connection attempt to the server.
+//
+// Panics if the tea program is not started.
 func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
 	t.teaProgram.Send(setErr(fmt.Errorf("failed to connect to server with IP %v", IP.String())))
 }
 
+// FailedToRegisterToServer notifies the terminal view of a failed registration attempt to the server.
+//
+// Panics if the tea program is not started.
 func (t *TerminalView) FailedToRegisterToServer(IP net.IP) {
 	t.teaProgram.Send(setErr(fmt.Errorf("failed to register to server with IP %v", IP.String())))
 }
 
 type setLoadingMessage string
 
+// EndLoading clears the loading message in the terminal view.
+//
+// Panics if the tea program is not started.
 func (t *TerminalView) EndLoading() {
 	t.teaProgram.Send(setLoadingMessage(""))
 }
