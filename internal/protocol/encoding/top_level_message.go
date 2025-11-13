@@ -38,16 +38,16 @@ func readMessage(r io.Reader) (*Message, int, error) {
 	}
 
 	var requestID *uint16
-	if messageType == constants.COMMAND || messageType == constants.ACK_ERROR {
-		requestIDBuf := make([]byte, 2) // read RequestID(2)
-		m, err := io.ReadFull(r, requestIDBuf)
-		n += m
-		if err != nil {
-			return nil, n, fmt.Errorf("error reading message request ID: %w", err)
-		}
-		reqID := binary.BigEndian.Uint16(requestIDBuf)
-		requestID = &reqID
-	}
+	// if messageType == constants.COMMAND || messageType == constants.ACK_ERROR {
+	// 	requestIDBuf := make([]byte, 2) // read RequestID(2)
+	// 	m, err := io.ReadFull(r, requestIDBuf)
+	// 	n += m
+	// 	if err != nil {
+	// 		return nil, n, fmt.Errorf("error reading message request ID: %w", err)
+	// 	}
+	// 	reqID := binary.BigEndian.Uint16(requestIDBuf)
+	// 	requestID = &reqID
+	// }
 
 	lengthBuf := make([]byte, 2)
 	m, err := io.ReadFull(r, lengthBuf) // read Length(2)

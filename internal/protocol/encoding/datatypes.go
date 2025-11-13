@@ -8,15 +8,22 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 )
 
-// EncodeInteger encodes a 32-bit integer into a TLV of type DATA_TYPE_INTEGER
-func EncodeInteger(value int32) (TLV, error) {
+// EncodeInteger32 encodes a 32-bit integer into a TLV of type DATA_TYPE_INTEGER
+func EncodeInteger32(value int32) (TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, uint32(value))
 	return NewTLV(uint8(constants.DATA_TYPE_INTEGER), data)
 }
 
-// DecodeInteger decodes a TLV of type DATA_TYPE_INTEGER into a 32-bit integer.
-func DecodeInteger(tlv TLV) (int32, error) {
+// EncodeInteger64 encodes a 64-bit integer into a TLV of type DATA_TYPE_INTEGER
+func EncodeInteger64(value int64) (TLV, error) {
+	data := make([]byte, 8)
+	binary.BigEndian.PutUint64(data, uint64(value))
+	return NewTLV(uint8(constants.DATA_TYPE_INTEGER), data)
+}
+
+// DecodeInteger32 decodes a TLV of type DATA_TYPE_INTEGER into a 32-bit integer.
+func DecodeInteger32(tlv TLV) (int32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
 	}
@@ -29,15 +36,36 @@ func DecodeInteger(tlv TLV) (int32, error) {
 	return int32(binary.BigEndian.Uint32(tlv.Value())), nil
 }
 
-// EncodeFloat encodes a 32-bit float into a TLV of type DATA_TYPE_FLOAT
-func EncodeFloat(value float32) (TLV, error) {
+// DecodeInteger64 decodes a TLV of type DATA_TYPE_INTEGER into a 64-bit integer.
+func DecodeInteger64(tlv TLV) (int64, error) {
+	if tlv == nil {
+		return 0, fmt.Errorf("TLV is nil")
+	}
+	if tlv.Type() != uint8(constants.DATA_TYPE_INTEGER) {
+		return 0, fmt.Errorf("expected integer type, got %x", tlv.Type())
+	}
+	if tlv.Length() != 8 {
+		return 0, fmt.Errorf("invalid integer length: %d", tlv.Length())
+	}
+	return int64(binary.BigEndian.Uint64(tlv.Value())), nil
+}
+
+// EncodeFloat32 encodes a 32-bit float into a TLV of type DATA_TYPE_FLOAT
+func EncodeFloat32(value float32) (TLV, error) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, math.Float32bits(value))
 	return NewTLV(uint8(constants.DATA_TYPE_FLOAT), data)
 }
 
-// DecodeFloat decodes a TLV of type DATA_TYPE_FLOAT into a 32-bit float.
-func DecodeFloat(tlv TLV) (float32, error) {
+// EncodeFloat64 encodes a 64-bit float into a TLV of type DATA_TYPE_FLOAT
+func EncodeFloat64(value float64) (TLV, error) {
+	data := make([]byte, 8)
+	binary.BigEndian.PutUint64(data, math.Float64bits(value))
+	return NewTLV(uint8(constants.DATA_TYPE_FLOAT), data)
+}
+
+// DecodeFloat32 decodes a TLV of type DATA_TYPE_FLOAT into a 32-bit float.
+func DecodeFloat32(tlv TLV) (float32, error) {
 	if tlv == nil {
 		return 0, fmt.Errorf("TLV is nil")
 	}
@@ -49,6 +77,21 @@ func DecodeFloat(tlv TLV) (float32, error) {
 	}
 	bits := binary.BigEndian.Uint32(tlv.Value())
 	return math.Float32frombits(bits), nil
+}
+
+// DecodeFloat64 decodes a TLV of type DATA_TYPE_FLOAT into a 64-bit float.
+func DecodeFloat64(tlv TLV) (float64, error) {
+	if tlv == nil {
+		return 0, fmt.Errorf("TLV is nil")
+	}
+	if tlv.Type() != uint8(constants.DATA_TYPE_FLOAT) {
+		return 0, fmt.Errorf("expected float type, got %x", tlv.Type())
+	}
+	if tlv.Length() != 8 {
+		return 0, fmt.Errorf("invalid float length: %d", tlv.Length())
+	}
+	bits := binary.BigEndian.Uint64(tlv.Value())
+	return math.Float64frombits(bits), nil
 }
 
 // EncodeString encodes a string into a TLV of type DATA_TYPE_STRING
@@ -104,10 +147,19 @@ func DecodeBoolean(tlv TLV) (bool, error) {
 // Returns an error for unsupported types.
 func EncodeAny(value any) (TLV, error) {
 	switch v := value.(type) {
+	case int:
+		if v >= math.MinInt32 && v <= math.MaxInt32 {
+			return EncodeInteger32(int32(v))
+		}
+		return EncodeInteger64(int64(v))
 	case int32:
-		return EncodeInteger(v)
+		return EncodeInteger32(v)
+	case int64:
+		return EncodeInteger64(v)
 	case float32:
-		return EncodeFloat(v)
+		return EncodeFloat32(v)
+	case float64:
+		return EncodeFloat64(v)
 	case string:
 		return EncodeString(v)
 	case bool:
@@ -125,9 +177,23 @@ func DecodeAny(tlv TLV) (any, error) {
 	}
 	switch constants.DataType(tlv.Type()) {
 	case constants.DATA_TYPE_INTEGER:
-		return DecodeInteger(tlv)
+		switch tlv.Length() {
+		case 4:
+			return DecodeInteger32(tlv)
+		case 8:
+			return DecodeInteger64(tlv)
+		default:
+			return nil, fmt.Errorf("invalid integer length: %d", tlv.Length())
+		}
 	case constants.DATA_TYPE_FLOAT:
-		return DecodeFloat(tlv)
+		switch tlv.Length() {
+		case 4:
+			return DecodeFloat32(tlv)
+		case 8:
+			return DecodeFloat64(tlv)
+		default:
+			return nil, fmt.Errorf("invalid float length: %d", tlv.Length())
+		}
 	case constants.DATA_TYPE_STRING:
 		return DecodeString(tlv)
 	case constants.DATA_TYPE_BOOLEAN:

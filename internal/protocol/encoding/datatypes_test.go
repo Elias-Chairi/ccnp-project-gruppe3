@@ -22,7 +22,7 @@ var integerDecimalBytes = map[int32][]byte{
 
 func TestEncodeInteger(t *testing.T) {
 	for integer, expected := range integerDecimalBytes {
-		encoded, err := encoding.EncodeInteger(integer)
+		encoded, err := encoding.EncodeInteger32(integer)
 		require.NoError(t, err)
 		assert.Equal(t, uint8(constants.DATA_TYPE_INTEGER), encoded.Type())
 		assert.Equal(t, uint16(4), encoded.Length())
@@ -33,7 +33,7 @@ func TestEncodeInteger(t *testing.T) {
 func TestDecodeInteger(t *testing.T) {
 	for expected, bytes := range integerDecimalBytes {
 		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_INTEGER), bytes)
-		tlvData, err := encoding.DecodeInteger(encoded)
+		tlvData, err := encoding.DecodeInteger32(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
 	}
@@ -49,7 +49,7 @@ var floatDecimalBytes = map[float32][]byte{
 
 func TestEncodeFloat(t *testing.T) {
 	for floatVal, expected := range floatDecimalBytes {
-		encoded, err := encoding.EncodeFloat(floatVal)
+		encoded, err := encoding.EncodeFloat32(floatVal)
 		require.NoError(t, err)
 		assert.Equal(t, uint8(constants.DATA_TYPE_FLOAT), encoded.Type())
 		assert.Equal(t, uint16(4), encoded.Length())
@@ -60,7 +60,7 @@ func TestEncodeFloat(t *testing.T) {
 func TestDecodeFloat(t *testing.T) {
 	for expected, bytes := range floatDecimalBytes {
 		encoded, _ := encoding.NewTLV(uint8(constants.DATA_TYPE_FLOAT), bytes)
-		tlvData, err := encoding.DecodeFloat(encoded)
+		tlvData, err := encoding.DecodeFloat32(encoded)
 		require.NoError(t, err)
 		assert.Equal(t, expected, tlvData)
 	}
@@ -162,33 +162,33 @@ func TestDecodeByteList(t *testing.T) {
 
 func TestDecodeInteger_InvalidArgument(t *testing.T) {
 	// nil TLV
-	_, err := encoding.DecodeInteger(nil)
+	_, err := encoding.DecodeInteger32(nil)
 	assert.Error(t, err)
 
 	// not an integer TLV
 	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0, 0, 0})
-	_, err = encoding.DecodeInteger(wrongType)
+	_, err = encoding.DecodeInteger32(wrongType)
 	assert.Error(t, err)
 
 	// wrong length
 	wrongLength, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0})
-	_, err = encoding.DecodeInteger(wrongLength)
+	_, err = encoding.DecodeInteger32(wrongLength)
 	assert.Error(t, err)
 }
 
 func TestDecodeFloat_InvalidArgument(t *testing.T) {
 	// nil TLV
-	_, err := encoding.DecodeFloat(nil)
+	_, err := encoding.DecodeFloat32(nil)
 	assert.Error(t, err)
 
 	// not a float TLV
 	wrongType, _ := encoding.NewTLV(byte(constants.DATA_TYPE_INTEGER), []byte{0, 0, 0, 0})
-	_, err = encoding.DecodeFloat(wrongType)
+	_, err = encoding.DecodeFloat32(wrongType)
 	assert.Error(t, err)
 
 	// wrong length
 	wrongLength, _ := encoding.NewTLV(byte(constants.DATA_TYPE_FLOAT), []byte{0, 0})
-	_, err = encoding.DecodeFloat(wrongLength)
+	_, err = encoding.DecodeFloat32(wrongLength)
 	assert.Error(t, err)
 }
 
@@ -230,7 +230,7 @@ func TestEncodeAny_InvalidArgument(t *testing.T) {
 	assert.Error(t, err)
 
 	// unsupported type
-	_, err = encoding.EncodeAny(int(42))
+	_, err = encoding.EncodeAny(struct{}{})
 	assert.Error(t, err)
 
 	// slice of unsupported type
