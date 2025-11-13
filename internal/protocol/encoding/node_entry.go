@@ -18,34 +18,38 @@ func EncodeNodeEntry(n entity.Node) (TLV, error) {
 	tlvs = append(tlvs, localIDTLV)
 
 	// Sensors
-	var sensorTLVs []TLV
-	for _, sensor := range n.Sensors {
-		sensorTLV, err := EncodeSensorEntry(sensor)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode sensor entry: %w", err)
+	if len(n.Sensors) > 0 {
+		var sensorTLVs []TLV
+		for _, sensor := range n.Sensors {
+			sensorTLV, err := EncodeSensorEntry(sensor)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode sensor entry: %w", err)
+			}
+			sensorTLVs = append(sensorTLVs, sensorTLV)
 		}
-		sensorTLVs = append(sensorTLVs, sensorTLV)
+		sensorsTLV, err := NewTLV(uint8(constants.SENSOR_ENTRIES), EncodeMultipleTLVs(sensorTLVs))
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode sensors TLV: %w", err)
+		}
+		tlvs = append(tlvs, sensorsTLV)
 	}
-	sensorsTLV, err := NewTLV(uint8(constants.SENSOR_ENTRIES), EncodeMultipleTLVs(sensorTLVs))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode sensors TLV: %w", err)
-	}
-	tlvs = append(tlvs, sensorsTLV)
 
 	// Actuators
-	var actuatorTLVs []TLV
-	for _, actuator := range n.Actuators {
-		actuatorTLV, err := EncodeActuatorEntry(actuator)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode actuator entry: %w", err)
+	if len(n.Actuators) > 0 {
+		var actuatorTLVs []TLV
+		for _, actuator := range n.Actuators {
+			actuatorTLV, err := EncodeActuatorEntry(actuator)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode actuator entry: %w", err)
+			}
+			actuatorTLVs = append(actuatorTLVs, actuatorTLV)
 		}
-		actuatorTLVs = append(actuatorTLVs, actuatorTLV)
+		actuatorsTLV, err := NewTLV(uint8(constants.ACTUATOR_ENTRIES), EncodeMultipleTLVs(actuatorTLVs))
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode actuators TLV: %w", err)
+		}
+		tlvs = append(tlvs, actuatorsTLV)
 	}
-	actuatorsTLV, err := NewTLV(uint8(constants.ACTUATOR_ENTRIES), EncodeMultipleTLVs(actuatorTLVs))
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode actuators TLV: %w", err)
-	}
-	tlvs = append(tlvs, actuatorsTLV)
 
 	// Combine all into Node Entry TLV
 	return NewTLV(uint8(constants.NODE_ENTRY), EncodeMultipleTLVs(tlvs))
