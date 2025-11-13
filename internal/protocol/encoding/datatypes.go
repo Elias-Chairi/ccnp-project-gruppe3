@@ -148,7 +148,10 @@ func DecodeBoolean(tlv TLV) (bool, error) {
 func EncodeAny(value any) (TLV, error) {
 	switch v := value.(type) {
 	case int:
-		return EncodeInteger32(int32(v)) // hmm
+		if v >= math.MinInt32 && v <= math.MaxInt32 {
+			return EncodeInteger32(int32(v))
+		}
+		return EncodeInteger64(int64(v))
 	case int32:
 		return EncodeInteger32(v)
 	case int64:
