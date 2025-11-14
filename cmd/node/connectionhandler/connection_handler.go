@@ -37,50 +37,52 @@ func (c *ConnectionHandler) Disconnect() error {
 // Register sends a registration message to the server and waits for the response containing the list of nodes.
 //
 // Panics if the connection is not established.
-func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
-	
-	msg := messages.NewRegisterControlMessage()
+func (c *ConnectionHandler) Register(node entity.Node) (uint8, error) {
+	msg, err := messages.NewRegisterNodeMessage(node.Sensors, node.Actuators)
+	if err != nil {
+		return 0, err
+	}
 	encoded, err := msg.Encode()
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode: %w", err)
+		return 0, fmt.Errorf("failed to encode: %w", err)
 	}
 
-	_, err = c.conn.Write(encoded)
+	if _, err := c.conn.Write(encoded); err != nil {
+		return 0, fmt.Errorf("failed to send: %w", err)
+	}
+
+	tlv, _, err := encoding.ReadNextMessage(c.conn, time.Second*2)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write to conn: %w", err)
+		return 0, fmt.Errorf("failed to read next message: %w", err)
 	}
 
-	readmsg, _, err := encoding.ReadNextMessage(c.conn, time.Second*10)
+	ack, err := messages.DecodeAckErrorMessage(tlv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read next message: %w", err)
+		return 0, fmt.Errorf("failed to decode ack error message: %w", err)
 	}
 
-	decodedmsg, err := messages.DecodeAckErrorMessage(readmsg)
+	if ack.IsError() {
+		return 0, fmt.Errorf("errorcode %d: register response is error: %s", ack.Code, ack.Data)
+	}
+
+	inner, err := encoding.DecodeMultipleTLVs([]byte(ack.Data))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode ack error message: %w", err)
+		return 0, fmt.Errorf("failed to decode inner TLVs: %w", err)
 	}
 
-	if decodedmsg.IsError() {
-		return nil, fmt.Errorf("errorcode %d: register response is error: %s", decodedmsg.Code, decodedmsg.Data)
+	if len(inner) == 0 {
+    	return 0, fmt.Errorf("missing NodeID TLV in ACK response")
 	}
 
-	tlvs, err := encoding.DecodeMultipleTLVs([]byte(decodedmsg.Data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode message: %w", err)
+	if inner[0].Length() != 1 {
+		return 0, fmt.Errorf("invalid NodeID TLV length")
 	}
 
-	var nodes []entity.Node
+	assignedID := inner[0].Value()[0]
 
-	for _, tlv := range tlvs {
-		node, err := encoding.DecodeNodeEntry(tlv)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode node entry: %w", err)
-		}
-		nodes = append(nodes, *node)
-	}
-
-	log.Printf("Sucessfully registered. Received %d node(s) from server \n", len(nodes))
-	return &nodes, nil
+	log.Printf("Node successfully registered. Assigned NodeID = %d\n", assignedID)
+	
+	return assignedID, nil
 }
 
 // SendSensorUpdate sends a sensor update message from a node to a server
