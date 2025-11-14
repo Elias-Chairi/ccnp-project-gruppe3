@@ -72,8 +72,7 @@ func processRequest(data []byte, src *net.UDPAddr) {
 
 	// Encode TLV to bytes before writing
 	b := tlv.Encode()
-
-
+	
 	// Send ACK message
 	_, err = replyConn.Write(b)
 	if err != nil {
