@@ -2,6 +2,7 @@ package connectionhandler
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -37,6 +38,7 @@ func (c *ConnectionHandler) Disconnect() error {
 //
 // Panics if the connection is not established.
 func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
+	
 	msg := messages.NewRegisterControlMessage()
 	encoded, err := msg.Encode()
 	if err != nil {
@@ -48,13 +50,12 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 		return nil, fmt.Errorf("failed to write to conn: %w", err)
 	}
 
-	readmsg, err := encoding.ReadNextMessage(c.conn, time.Second*10)
-
+	readmsg, _, err := encoding.ReadNextMessage(c.conn, time.Second*10)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read next message: %w", err)
 	}
 
-	decodedmsg, err := messages.DecodeAckErrorMessage(readmsg.TLV)
+	decodedmsg, err := messages.DecodeAckErrorMessage(readmsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ack error message: %w", err)
 	}
@@ -78,5 +79,26 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 		nodes = append(nodes, *node)
 	}
 
+	log.Printf("Sucessfully registered. Received %d node(s) from server \n", len(nodes))
 	return &nodes, nil
+}
+
+// SendSensorUpdate sends a sensor update message from a node to a server
+func (c *ConnectionHandler) SendSensorUpdate(sensor entity.Sensor[any]) error {
+    // Build message (node → server, so no nodeID is needed)
+    msg := messages.NewSensorUpdateMessage(sensor)
+
+    // Encode into raw TLV bytes
+    encoded, err := msg.Encode()
+    if err != nil {
+        return fmt.Errorf("failed to encode sensor update: %w", err)
+    }
+
+    // Write to TCP connection
+    _, err = c.conn.Write(encoded)
+    if err != nil {
+        return fmt.Errorf("failed to send sensor update: %w", err)
+    }
+
+    return nil
 }

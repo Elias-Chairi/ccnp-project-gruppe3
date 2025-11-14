@@ -36,6 +36,11 @@ func NewSensorUpdateMessageWithNode(nodeID uint8, sensor entity.Sensor[any]) *se
 	}
 }
 
+// Type returns the message type.
+func (m *sensorUpdateMessage) Type() constants.MessageType {
+	return constants.SENSOR_UPDATE
+}
+
 // Encode encodes the SENSOR_UPDATE message to bytes.
 func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	var tlvs []encoding.TLV
@@ -49,12 +54,12 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 		tlvs = append(tlvs, tlv)
 	}
 
-	// Encode sensor entry
-	entryTLV, err := encoding.EncodeSensorEntry(m.Sensor)
+	// Required sensor entry
+	sensorTLV, err := encoding.EncodeSensorEntry(m.Sensor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode sensor entry: %w", err)
 	}
-	tlvs = append(tlvs, entryTLV)
+	tlvs = append(tlvs, sensorTLV)
 
 	// Wrap in SENSOR_UPDATE TLV
 	value := encoding.EncodeMultipleTLVs(tlvs)
@@ -65,47 +70,52 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	return mainTLV.Encode(), nil
 }
 
-// Type returns the message type.
-func (m *sensorUpdateMessage) Type() constants.MessageType {
-	return constants.SENSOR_UPDATE
-}
-
 // DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV.
 // Validates type (SENSOR_UPDATE), optional NodeID TLV length (1), and presence of sensor entry.
 func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
+	
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
 	}
 	if t.Type() != uint8(constants.SENSOR_UPDATE) {
-		return nil, fmt.Errorf("expected SENSOR_UPDATE type, got %x", t.Type())
+		return nil, fmt.Errorf("Expected SENSOR_UPDATE type, got %x", t.Type())
 	}
 
-	tlvs, err := encoding.DecodeMultipleTLVs(t.Value())
+	inner, err := encoding.DecodeMultipleTLVs(t.Value())
 	if err != nil {
 		return nil, err
 	}
 
 	msg := &sensorUpdateMessage{}
-	var sensor *entity.Sensor[any]
-	for _, tlv := range tlvs {
-		switch tlv.Type() {
+	var sensorFound bool
+
+	for _, innerTLV := range inner {
+		switch innerTLV.Type() {
 		case uint8(constants.SINGLE_NODE):
-			if tlv.Length() != 1 {
+			if innerTLV.Length() != 1 {
 				return nil, fmt.Errorf("invalid node ID length")
 			}
-			msg.NodeID = &tlv.Value()[0]
-		case constants.SENSOR_ENTRY:
-			sensor, err = encoding.DecodeSensorEntry(tlv)
+			id := innerTLV.Value()[0]
+			msg.NodeID = &id
+		case uint8(constants.SENSOR_ENTRY):
+			if sensorFound {
+				return nil, fmt.Errorf("duplicate SENSOR_ENTRY")
+			}
+			sensor, err := encoding.DecodeSensorEntry(innerTLV)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor entry: %w", err)
 			}
+			msg.Sensor = *sensor
+			sensorFound = true
+		default:
+			return nil, fmt.Errorf("unknown TLV %x inside SENSOR_UPDATE", innerTLV.Type())
+		
 		}
 	}
 
-	if sensor == nil {
+	if !sensorFound {
 		return nil, fmt.Errorf("sensor entry not found in SENSOR_UPDATE message")
 	}
 
-	msg.Sensor = *sensor
 	return msg, nil
 }
