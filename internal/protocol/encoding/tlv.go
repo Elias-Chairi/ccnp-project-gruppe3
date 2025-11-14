@@ -16,6 +16,8 @@ type TLV interface {
 	Value() []byte
 	// Encode returns the wire representation [Type][Length][Value].
 	Encode() []byte
+	// EncodeWithRequestID encodes a TLV with a RequestID into the wire format [Type][RequestID][Length][Value].
+	EncodeWithRequestID(requestID uint16) []byte
 }
 
 // tlv is the internal implementation of the TLV interface.
@@ -57,6 +59,18 @@ func (t *tlv) Encode() []byte {
 	result[0] = t.tlvType
 	binary.BigEndian.PutUint16(result[1:3], t.length)
 	copy(result[3:], t.value)
+	return result
+}
+
+func (t *tlv) EncodeWithRequestID(requestID uint16) []byte {
+	if t == nil {
+		return nil
+	}
+	result := make([]byte, 5+len(t.value))
+	result[0] = t.tlvType
+	binary.BigEndian.PutUint16(result[1:3], requestID)
+	binary.BigEndian.PutUint16(result[3:5], t.length)
+	copy(result[5:], t.value)
 	return result
 }
 

@@ -1,7 +1,6 @@
 package messages_test
 
 import (
-	"encoding/binary"
 	"testing"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
@@ -32,10 +31,10 @@ func TestEncode(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(encoded)
 
-	assert.Equal(uint8(constants.ACK_ERROR), encoded[0])                          // Type
-	assert.Equal(uint16(1+len("success")), binary.BigEndian.Uint16(encoded[1:3])) // length
-	assert.Equal(uint8(constants.ACK_SUCCESS), encoded[3])                        // First byte of value is the code
-	assert.Equal("success", string(encoded[4:]))                                  // Remaining bytes are the data
+	assert.Equal(uint8(constants.ACK_ERROR), encoded.Type())       // Type
+	assert.Equal(uint16(1+len("success")), encoded.Length())       // length
+	assert.Equal(uint8(constants.ACK_SUCCESS), encoded.Value()[0]) // First byte of value is the code
+	assert.Equal("success", string(encoded.Value()[1:]))           // Remaining bytes are the data
 }
 
 func TestDecode(t *testing.T) {
@@ -62,10 +61,10 @@ func TestEncode_AckMessage_NoData(t *testing.T) {
 	encoded, err := msg.Encode()
 	assert.NoError(err)
 	assert.NotNil(encoded)
-	assert.Equal(uint8(constants.ACK_ERROR), encoded[0])           // Type
-	assert.Equal(uint16(1), binary.BigEndian.Uint16(encoded[1:3])) // length
-	assert.Equal(uint8(0), encoded[3])                             // Code
-	assert.Equal(4, len(encoded))                                  // Total length should be 4 bytes (Type + Length + Code)
+	assert.Equal(uint8(constants.ACK_ERROR), encoded.Type()) // Type
+	assert.Equal(uint16(1), encoded.Length())                // length
+	assert.Equal(uint8(0), encoded.Value()[0])               // Code
+	assert.Equal(4, len(encoded.Encode()))                   // Total length should be 4 bytes (Type + Length + Code)
 }
 
 func TestDecodeInvalidState_AckErrorMessage(t *testing.T) {

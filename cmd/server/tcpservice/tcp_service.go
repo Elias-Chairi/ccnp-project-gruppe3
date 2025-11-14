@@ -13,23 +13,30 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var tcpServiceAddress = net.TCPAddr{
-	// localhost address
-	IP: net.ParseIP("127.0.0.1"),
-	// port sat in protocol document
-	Port: 6000,
-}
-
 const readDeadline = 5 * time.Second
 
-type TcpService struct {
+type tcpService struct {
+	IP      net.IP
+	Port    int
+	Timeout time.Duration
+
+	pendingReq *PendingRequests
 	nodeReg    *NodeRegistry
 	ctrlPanReg *ControlPanelRegistry
 }
 
-func (t *TcpService) Start() {
+// NewTcpService creates a new TCP service with the given parameters.
+func NewTcpService(ip net.IP, port int, timeout time.Duration) *tcpService {
+	return &tcpService{
+		IP:      ip,
+		Port:    port,
+		Timeout: timeout,
+	}
+}
 
-	listener, err := net.ListenTCP("tcp4", &tcpServiceAddress)
+// Start starts the TCP service, listening for incoming connections and handling them.
+func (t *tcpService) Start() {
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: t.IP, Port: t.Port})
 	if err != nil {
 		log.Fatal("Error listening TCP:", err)
 	}
@@ -39,6 +46,7 @@ func (t *TcpService) Start() {
 
 	t.nodeReg = NewNodeRegistry()
 	t.ctrlPanReg = &ControlPanelRegistry{}
+	t.pendingReq = NewPendingRequests()
 
 	log.Printf("Listening on: %s\n", listener.Addr())
 
@@ -68,20 +76,20 @@ func isConnClosedErr(err error) bool {
 
 // handleRegistration handles the registration process and all further communication with the client.
 // Only returns when the connection is closed or an unrecoverable error occurs.
-func (t *TcpService) handleRegistration(conn net.Conn) error {
+func (t *tcpService) handleRegistration(conn net.Conn) error {
 	defer func() {
 		_ = conn.Close()
 	}()
 
-	msg, err := encoding.ReadNextMessage(conn, readDeadline)
+	tlv, _, err := encoding.ReadNextMessage(conn, readDeadline)
 	if err != nil {
 		return fmt.Errorf("error reading registration message: %w", err)
 	}
 
 	// handle based on registration type
-	switch msg.TLV.Type() {
+	switch tlv.Type() {
 	case uint8(constants.REGISTER_NODE):
-		msg, err := messages.DecodeRegisterNodeMessage(msg.TLV)
+		msg, err := messages.DecodeRegisterNodeMessage(tlv)
 		if err != nil {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
@@ -96,10 +104,10 @@ func (t *TcpService) handleRegistration(conn net.Conn) error {
 			t.nodeReg.RemoveNodeID(id)
 			// todo: send delete node to control panel(s)
 		}()
-		return handleConn(conn, handleNode)
+		return t.handleConn(conn, handleNode)
 
 	case uint8(constants.REGISTER_CONTROL):
-		_, err := messages.DecodeRegisterControlMessage(msg.TLV)
+		_, err := messages.DecodeRegisterControlMessage(tlv)
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
@@ -108,33 +116,56 @@ func (t *TcpService) handleRegistration(conn net.Conn) error {
 
 		msg, err := messages.NewAckNodeListMessage(t.nodeReg.GetAllNodes())
 		if err == nil {
-			_ = messages.WriteMessage(conn, msg) // ignoring error sending response
+			_ = t.writeMessage(conn, msg) // ignoring error sending response
 		}
-		return handleConn(conn, handleControlPanel)
+		return t.handleConn(conn, handleControlPanel)
 	default:
-		return fmt.Errorf("invalid registration type %v", msg.TLV.Type())
+		return fmt.Errorf("invalid registration type %v", tlv.Type())
 	}
 }
 
 // messageHandler is a function that handles a single top-level message from a connection.
-type messageHandler func(topLevelMessage *encoding.Message) messages.AckErrorMessage
+type messageHandler func(tlv encoding.TLV) messages.AckErrorMessage
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
 // Read loop continues until the connection is closed.
-func handleConn(conn net.Conn, f messageHandler) error {
+func (t *tcpService) handleConn(conn net.Conn, f messageHandler) error {
 	for {
-		msg, err := encoding.ReadNextMessage(conn, readDeadline)
+		msg, _, err := encoding.ReadNextMessage(conn, readDeadline)
+		// todo: Request id ?????
 		if err != nil {
 			if !isConnClosedErr(err) {
 				// send error message before closing connection
-				_ = messages.WriteMessage(conn, messages.AckErrorMessage{
+				_ = t.writeMessage(conn, messages.AckErrorMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
 			return err
 		}
 		// send response, ignoring errors
-		_ = messages.WriteMessage(conn, f(msg))
+		_ = t.writeMessage(conn, f(msg))
 	}
+}
+
+func (t *tcpService) writeMessage(conn net.Conn, msg messages.TopLevelMessage) error {
+	tlv, err := msg.Encode()
+	if err != nil {
+		return fmt.Errorf("error encoding response message: %w", err)
+	}
+
+	var data []byte
+	switch tlv.Type() {
+	case uint8(constants.COMMAND), uint8(constants.ACK_ERROR_REQUESTID):
+		data = tlv.EncodeWithRequestID(0)
+		// todo: add data to pending in tcpService
+	default:
+		data = tlv.Encode()
+	}
+
+	_, err = conn.Write(data)
+	if err != nil {
+		return fmt.Errorf("error writing response message: %w", err)
+	}
+	return nil
 }

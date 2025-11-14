@@ -13,28 +13,11 @@
 package messages
 
 import (
-	"fmt"
-	"io"
-
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 )
 
-type Message interface {
-	Encode() ([]byte, error)
+type TopLevelMessage interface {
+	Encode() (encoding.TLV, error)
 	Type() constants.MessageType
-}
-
-// WriteMessage encodes and writes a message to the provided writer.
-func WriteMessage(w io.Writer, msg Message) error {
-	encoded, err := msg.Encode()
-	if err != nil {
-		return fmt.Errorf("failed to encode message: %w", err)
-	}
-
-	_, err = w.Write(encoded)
-	if err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
-	}
-
-	return nil
 }

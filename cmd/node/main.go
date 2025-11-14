@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/greenhouse"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 )
@@ -34,8 +35,17 @@ func main() {
 		LightLevel:  200.0,
 	}
 
+	c := connectionhandler.ConnectionHandler{}
+
+	log.Println("Connecting to server...")
+	c.Connect()
+
+	log.Println("Registering node...")
+	c.Register()
+
 	onSensorUpdate := func(sensor *entity.Sensor[any]) {
 		log.Printf("Sensor %d, type %s, updated: %v%s\n", sensor.ID, sensor.Type, sensor.Value, sensor.Unit)
+		// c.SendSensorUpdate(node.ID, *sensor)
 	}
 
 	g := greenhouse.NewGreenhouse(node, outdoorConditions, onSensorUpdate)
@@ -44,5 +54,6 @@ func main() {
 	for range ticker.C {
 		log.Println("Simulating greenhouse step...")
 		g.SimulateStep()
+
 	}
 }
