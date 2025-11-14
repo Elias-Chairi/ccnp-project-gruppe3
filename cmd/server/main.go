@@ -12,5 +12,6 @@ func main() {
 	go udpservice.StartUDPService()
 
 	log.Println("starting TCP service...")
-	tcpservice.StartTCPService()
+	ts := &tcpservice.TcpService{}
+	ts.Start()
 }

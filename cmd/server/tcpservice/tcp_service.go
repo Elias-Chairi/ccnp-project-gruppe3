@@ -13,9 +13,6 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var nodeRegistry = NewNodeRegistry()
-var controlPanelRegistry = &ControlPanelRegistry{}
-
 var tcpServiceAddress = net.TCPAddr{
 	// localhost address
 	IP: net.ParseIP("127.0.0.1"),
@@ -25,7 +22,12 @@ var tcpServiceAddress = net.TCPAddr{
 
 const readDeadline = 5 * time.Second
 
-func StartTCPService() {
+type TcpService struct {
+	nodeReg    *NodeRegistry
+	ctrlPanReg *ControlPanelRegistry
+}
+
+func (t *TcpService) Start() {
 
 	listener, err := net.ListenTCP("tcp4", &tcpServiceAddress)
 	if err != nil {
@@ -34,6 +36,9 @@ func StartTCPService() {
 	defer func() {
 		_ = listener.Close()
 	}()
+
+	t.nodeReg = NewNodeRegistry()
+	t.ctrlPanReg = &ControlPanelRegistry{}
 
 	log.Printf("Listening on: %s\n", listener.Addr())
 
@@ -45,7 +50,7 @@ func StartTCPService() {
 		}
 		go func() {
 			log.Println("New connection from:", conn.RemoteAddr())
-			if err := handleRegistration(conn); err != nil {
+			if err := t.handleRegistration(conn); err != nil {
 				if isConnClosedErr(err) {
 					log.Println("Connection closed by client:", conn.RemoteAddr())
 				} else {
@@ -63,7 +68,7 @@ func isConnClosedErr(err error) bool {
 
 // handleRegistration handles the registration process and all further communication with the client.
 // Only returns when the connection is closed or an unrecoverable error occurs.
-func handleRegistration(conn net.Conn) error {
+func (t *TcpService) handleRegistration(conn net.Conn) error {
 	defer func() {
 		_ = conn.Close()
 	}()
@@ -82,13 +87,13 @@ func handleRegistration(conn net.Conn) error {
 		}
 
 		// create and store unique node ID
-		id := nodeRegistry.CreateNodeID(conn, msg.Sensors, msg.Actuators)
+		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
 
 		// when function returns, remove node ID from registry
 		// todo: send new node to control panel(s)
 
 		defer func() {
-			nodeRegistry.RemoveNodeID(id)
+			t.nodeReg.RemoveNodeID(id)
 			// todo: send delete node to control panel(s)
 		}()
 		return handleConn(conn, handleNode)
@@ -98,15 +103,12 @@ func handleRegistration(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
-		controlPanelRegistry.AddControlPanel(conn)
-		defer controlPanelRegistry.RemoveControlPanel(conn)
+		t.ctrlPanReg.AddControlPanel(conn)
+		defer t.ctrlPanReg.RemoveControlPanel(conn)
 
-		msg, err := messages.NewAckNodeListMessage(nodeRegistry.GetAllNodes())
+		msg, err := messages.NewAckNodeListMessage(t.nodeReg.GetAllNodes())
 		if err == nil {
-			encoded, err := msg.Encode()
-			if err == nil {
-				_, _ = conn.Write(encoded)
-			}
+			_ = messages.WriteMessage(conn, msg) // ignoring error sending response
 		}
 		return handleConn(conn, handleControlPanel)
 	default:
@@ -125,25 +127,14 @@ func handleConn(conn net.Conn, f messageHandler) error {
 		msg, err := encoding.ReadNextMessage(conn, readDeadline)
 		if err != nil {
 			if !isConnClosedErr(err) {
-				_ = sendResponse(conn, messages.AckErrorMessage{
+				// send error message before closing connection
+				_ = messages.WriteMessage(conn, messages.AckErrorMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
 			return err
 		}
-		_ = sendResponse(conn, f(msg)) // ignoring error sending response
+		// send response, ignoring errors
+		_ = messages.WriteMessage(conn, f(msg))
 	}
-}
-
-// sendResponse encodes and sends a message over the connection.
-func sendResponse(conn net.Conn, message messages.Message) error {
-	encodedMsg, err := message.Encode()
-	if err != nil {
-		return fmt.Errorf("failed to encode response message: %w", err)
-	}
-	_, err = conn.Write(encodedMsg)
-	if err != nil {
-		return fmt.Errorf("failed to send response message: %w", err)
-	}
-	return nil
 }
