@@ -452,8 +452,12 @@ func renderNodeView(m model) string {
 	//  RIGHT COLUMN: ACTUATORS
 
 	highlight := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#13d1cbff"))
+    Bold(true).
+    Background(lipgloss.Color("#000ed6ff")).
+    Foreground(lipgloss.Color("#ffffffff"))
+	highlight = highlight.Width(40)
+
+
 
 	var actuators string
 	actuators += lipgloss.NewStyle().Bold(true).Underline(true).Render("Actuators") + "\n"
@@ -492,7 +496,6 @@ func renderNodeView(m model) string {
 				}
 			}
 
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#15ced7ff"))
 		}
 
 		spinnerStr := ""
@@ -503,13 +506,15 @@ func renderNodeView(m model) string {
 		line := fmt.Sprintf("  %-12s : %s%s", act.Type, value, spinnerStr)
 
 
+		// First apply actuator-specific colors
+		styled := style.Render(line)
+
+		// Then apply highlight background without overriding colors
 		if i == m.cursor {
-			line = highlight.Render(line)
-		} else {
-			line = style.Render(line)
+			styled = highlight.Render(styled)
 		}
 
-		actuators += line + "\n"
+		actuators += styled + "\n"
 	}
 
 	actuatorsStyle := lipgloss.NewStyle().Width(40)
