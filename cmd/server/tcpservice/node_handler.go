@@ -8,9 +8,10 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 )
 
-var handleNode messageHandler = func(msg encoding.TLV) messages.AckErrorMessage {
+var handleNode messageHandler = func(t *tcpService, msg encoding.TLV) messages.TopLevelMessage {
 	switch msg.Type() {
 	case uint8(constants.SENSOR_UPDATE):
 		// todo: handle sensor update
@@ -23,18 +24,6 @@ var handleNode messageHandler = func(msg encoding.TLV) messages.AckErrorMessage 
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		}
 	}
-}
-
-// GetUniqueID generates a unique node ID not present in existingIDs.
-func GetUniqueID(existingIDs map[uint8]NodeInfo) uint8 {
-	newID := uint8(len(existingIDs) + 1)
-	for {
-		if _, exists := existingIDs[newID]; !exists {
-			break
-		}
-		newID++
-	}
-	return newID
 }
 
 // NodeRegistry manages node IDs and their associated connections.
@@ -134,7 +123,7 @@ func (r *NodeRegistry) CreateNodeID(conn net.Conn, sensors []entity.Sensor[any],
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	nodeID := GetUniqueID(r.nodes)
+	nodeID := util.GetUniqueMapKey(r.nodes)
 	r.nodes[nodeID] = NodeInfo{
 		conn:      conn,
 		Sensors:   sensors,

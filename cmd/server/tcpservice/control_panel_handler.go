@@ -10,10 +10,11 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var handleControlPanel messageHandler = func(msg encoding.TLV) messages.AckErrorMessage {
+var handleControlPanel messageHandler = func(t *tcpService, msg encoding.TLV) messages.TopLevelMessage {
 	switch msg.Type() {
-	case uint8(constants.COMMAND):
-		// todo: handle command
+	case uint8(constants.COMMAND): // received command from control panel, forward to node
+
+		id := t.pendingReq.Add()
 		return messages.AckSuccessMessage()
 	default:
 		return messages.AckErrorMessage{

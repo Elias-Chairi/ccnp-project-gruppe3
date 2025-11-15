@@ -63,14 +63,14 @@ func processRequest(data []byte, src *net.UDPAddr) {
 
 	// create ack message
 	msg := messages.AckSuccessMessage()
-	encodedMsg, err := msg.Encode()
+	tlv, err := msg.Encode()
 	if err != nil {
 		log.Printf("error encoding ACK message: %v", err)
 		return
 	}
 
 	// send ACK message
-	_, err = replyConn.Write(encodedMsg)
+	_, err = replyConn.Write(tlv.Encode())
 	if err != nil {
 		log.Printf("error writing ACK message: %v", err)
 		return
