@@ -98,7 +98,7 @@ func DecodeActuatorUpdateMessage(t encoding.TLV) (*ActuatorUpdateMessage, error)
 			}
 
 		default:
-			return nil, fmt.Errorf("unexpected TLV type 0x%x in COMMAND message", inner.Type())
+			return nil, fmt.Errorf("unexpected TLV type 0x%x in ACTUATOR_UPDATE message", inner.Type())
 		}
 	}
 
