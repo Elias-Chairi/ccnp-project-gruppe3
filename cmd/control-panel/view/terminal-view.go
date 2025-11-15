@@ -506,10 +506,10 @@ func renderNodeView(m model) string {
 		line := fmt.Sprintf("  %-12s : %s%s", act.Type, value, spinnerStr)
 
 
-		// First apply actuator-specific colors
+		// actuator-specific colors
 		styled := style.Render(line)
 
-		// Then apply highlight background without overriding colors
+		// highlight background without overriding colors
 		if i == m.cursor {
 			styled = highlight.Render(styled)
 		}
