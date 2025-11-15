@@ -464,7 +464,7 @@ func renderNodeView(m model) string{
 				}
 			}
 
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140"))
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#15ced7ff"))
 		}
 
 		line := fmt.Sprintf("  %-12s : %s", act.Type, value)
