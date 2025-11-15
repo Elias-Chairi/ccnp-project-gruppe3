@@ -3,35 +3,44 @@ package tcpservice
 import (
 	"sync"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 type PendingRequests struct {
-	mu    sync.RWMutex
-	nodes map[uint8]encoding.TLV
+	mu   sync.RWMutex
+	reqs map[uint16]Request
+}
+
+type Request struct {
+	Msg    messages.TopLevelMessage
+	Sender *utilNet.SafeConn
 }
 
 func NewPendingRequests() *PendingRequests {
 	return &PendingRequests{
-		nodes: make(map[uint8]encoding.TLV),
+		reqs: make(map[uint16]Request),
 	}
 }
 
-func (pr *PendingRequests) Add(nodeID uint8, tlv encoding.TLV) {
-	pr.mu.Lock()
-	defer pr.mu.Unlock()
-	pr.nodes[nodeID] = tlv
+func (p *PendingRequests) Add(req Request) uint16 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	key := util.GetUniqueMapKey(p.reqs)
+	p.reqs[key] = req
+	return key
 }
 
-func (pr *PendingRequests) Get(nodeID uint8) (encoding.TLV, bool) {
-	pr.mu.RLock()
-	defer pr.mu.RUnlock()
-	tlv, exists := pr.nodes[nodeID]
-	return tlv, exists
+func (p *PendingRequests) Get(reqID uint16) (Request, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	msg, exists := p.reqs[reqID]
+	return msg, exists
 }
 
-func (pr *PendingRequests) Remove(nodeID uint8) {
-	pr.mu.Lock()
-	defer pr.mu.Unlock()
-	delete(pr.nodes, nodeID)
+func (p *PendingRequests) Remove(reqID uint16) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.reqs, reqID)
 }
