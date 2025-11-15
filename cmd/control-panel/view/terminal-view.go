@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 
-
+	"github.com/charmbracelet/bubbles/spinner"
+	textinput "github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	textinput "github.com/charmbracelet/bubbles/textinput"
-
 )
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
@@ -88,30 +88,48 @@ type model struct {
 	editingActuator int
 	input textinput.Model
 	isEditingNumber bool
+	spinner spinner.Model
+	pendingActuator map[int]bool
+}
+
+type actuatorResponseMsg struct {
+	Index int
 }
 
 func initialModel() tea.Model {
+
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
 	return model{
-		viewState:    mainMenu,
-		message:      "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
-		choices:      []string{"Manage Greenhouses", "Exit"},
-		nodes:        nil,
-		stack:        &util.Stack[model]{},
-		selectedNode: 0,
-		loadingmsg:   "Loading Nodes",
-		err:          nil,
+		viewState:    	 mainMenu,
+		message:      	 "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
+		choices:      	 []string{"Manage Greenhouses", "Exit"},
+		nodes:        	 nil,
+		stack:        	 &util.Stack[model]{},
+		spinner:         sp,
+		pendingActuator: map[int]bool{},
+		selectedNode: 	 0,
+		loadingmsg:   	 "Loading Nodes",
+		err:          	 nil,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
+	var cmd tea.Cmd
+	m.spinner, cmd = m.spinner.Update(msg)
+	if cmd != nil {
+		return m, cmd
+	}
+
+
 	if m.isEditingNumber {
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
+		var inputCmd tea.Cmd
+		m.input, inputCmd = m.input.Update(msg)
 
 		switch key := msg.(type) {
 		case tea.KeyMsg:
@@ -121,17 +139,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Sscanf(m.input.Value(), "%d", &num)
 				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
 				m.isEditingNumber = false
-				return m, nil
+				
+				// Start spinner wait
+                m.pendingActuator[m.editingActuator] = true
+
+                return m, tea.Batch(
+                    inputCmd,
+                    tea.Tick(time.Second, func(t time.Time) tea.Msg {
+                        return actuatorResponseMsg{Index: m.editingActuator}
+                    }),
+                )
 
 			case "esc", "escape":
 				m.isEditingNumber = false
 				return m, nil
 			}
 		}
-		return m, cmd
+		return m, inputCmd
 	}
 
+	//main switchmsg
 	switch msg := msg.(type) {
+
+	case actuatorResponseMsg:
+    	delete(m.pendingActuator, msg.Index)
+    	return m, nil
+ 	
 
 	case setNodes:
 		m.nodes = ([]entity.Node)(msg)
@@ -289,21 +322,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// BOOL actuator
 					case bool:
 						act.State = !v
+					// Mark pending and start spinner + fake delay
+					m.pendingActuator[m.cursor] = true
+					return m, tea.Batch(
+						m.spinner.Tick,
+						tea.Tick(time.Second, func(t time.Time) tea.Msg {
+							return actuatorResponseMsg{Index: m.cursor}
+						}),
+					)
+					
 
-					case int, int32, int64:
-						// enter edit mode
-					m.isEditingNumber = true
-					m.editingActuator = m.cursor
+                    case int, int32, int64:
+                        // Start editing mode
+                        m.isEditingNumber = true
+                        m.editingActuator = m.cursor
 
-					m.input = textinput.New()
-					m.input.Placeholder = "Enter number"
-					m.input.Focus()
+                        m.input = textinput.New()
+                        m.input.Placeholder = "Enter number"
+                        m.input.SetValue(fmt.Sprintf("%v", act.State))
+                        m.input.Focus()
 
-					// preload existing value
-					m.input.SetValue(fmt.Sprintf("%v", act.State))
-
-					return m, textinput.Blink
-						}
+                        return m, textinput.Blink
+					}
 				}
 			}
 		}
@@ -455,7 +495,13 @@ func renderNodeView(m model) string {
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#15ced7ff"))
 		}
 
-		line := fmt.Sprintf("  %-12s : %s", act.Type, value)
+		spinnerStr := ""
+		if m.pendingActuator[i] {
+			spinnerStr = " " + m.spinner.View()
+		}
+
+		line := fmt.Sprintf("  %-12s : %s%s", act.Type, value, spinnerStr)
+
 
 		if i == m.cursor {
 			line = highlight.Render(line)
