@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
-	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 // readMessage reads a Message from the given reader.
@@ -67,8 +66,13 @@ func readMessage(r io.Reader) (*tlv, *uint16, int, error) {
 	}, requestID, n, nil
 }
 
+type MessageReader interface {
+	io.Reader
+	SetReadDeadline(time.Time) error
+}
+
 // ReadNextMessage reads the next Message from the given net.Conn with a specified timeout for each read operation.
-func ReadNextMessage(conn *utilNet.SafeConn, timeout time.Duration) (*tlv, *uint16, error) {
+func ReadNextMessage(conn MessageReader, timeout time.Duration) (*tlv, *uint16, error) {
 	for {
 		// doesn't make sense to read forever since if the received data is too far apart in time
 		// it is not likely that they belong to the same message or that the client is dead.
