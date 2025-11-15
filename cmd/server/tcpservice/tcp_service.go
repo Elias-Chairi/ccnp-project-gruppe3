@@ -98,6 +98,7 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 
 		// create and store unique node ID
 		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
+		// todo: send ID to node
 		// todo: send new node to control panel(s)
 
 		defer func() {

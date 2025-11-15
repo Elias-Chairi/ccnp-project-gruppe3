@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/connectionhandler"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/greenhouse"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
@@ -58,14 +58,24 @@ func main() {
 	}
 
 	log.Println("Connecting to server...")
-	c.Connect()
+	if err := c.Connect(); err != nil {
+		log.Fatalf("Failed to connect: %v", err)
+	}
 
 	log.Println("Registering node...")
-	c.Register()
+	assignedID, err := c.Register(node)
+	if err != nil {
+		log.Fatalf("Failed to register: %v", err)
+	}
+
+	node.ID = assignedID
+	log.Printf("Node assigned ID %d\n", node.ID)
 
 	onSensorUpdate := func(sensor *entity.Sensor[any]) {
 		log.Printf("Sensor %d, type %s, updated: %v%s\n", sensor.ID, sensor.Type, sensor.Value, sensor.Unit)
-		// c.SendSensorUpdate(node.ID, *sensor)
+		if err := c.SendSensorUpdate(*sensor); err != nil {
+			log.Printf("Failed to send sensor update: %v\n", err)
+		}
 	}
 
 	g := greenhouse.NewGreenhouse(node, outdoorConditions, onSensorUpdate)
