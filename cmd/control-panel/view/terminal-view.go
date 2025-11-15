@@ -8,8 +8,11 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
 
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	textinput "github.com/charmbracelet/bubbles/textinput"
+
 )
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
@@ -73,6 +76,7 @@ const (
 	sensorView
 	actuatorView
 	nodeView
+	editActuator
 )
 
 type model struct {
@@ -84,9 +88,9 @@ type model struct {
 	selectedNode int
 	stack        *util.Stack[model] // used to manage navigation history
 	err          error
-	// spinner 	 spinner.Model
 	loadingmsg string
-	// loading    bool
+	editingActuator int
+	input textinput.Model
 }
 
 func initialModel() tea.Model {
@@ -107,6 +111,42 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	if m.viewState == editActuator {
+    var cmd tea.Cmd
+
+    // Update the text input component
+    m.input, cmd = m.input.Update(msg)
+
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+
+			case "enter":
+				// Save number
+				valStr := m.input.Value()
+				var num int
+				_, err := fmt.Sscanf(valStr, "%d", &num)
+				if err == nil {
+					// Apply the new value
+					m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
+				}
+
+				// Exit edit mode
+				prev, _ := m.stack.Pop()
+				m = *prev
+				return m, nil
+
+			case "esc", "escape":
+				// Cancel edit mode
+				prev, _ := m.stack.Pop()
+				m = *prev
+				return m, nil
+			}
+		}
+
+    	return m, cmd
+	}
 	switch msg := msg.(type) {
 
 	case setNodes:
@@ -266,30 +306,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					case bool:
 						act.State = !v
 
-					// INT actuator → increase
-					case int:
-						if v < 10 {
-							act.State = v + 1
-						} else {
-							act.State = v + 10
-						}
+					case int, int32, int64:
+						// enter edit mode
+						m.stack.Push(m)
+						m.viewState = editActuator
+						m.editingActuator = m.cursor
 
-					case int32:
-						iv := int(v)
-						if iv < 10 {
-							act.State = iv + 1
-						} else {
-							act.State = iv + 10
-						}
+						m.input = textinput.New()
+						m.input.Placeholder = "Enter number"
+						m.input.Focus()
 
-					case int64:
-						iv := int(v)
-						if iv < 10 {
-							act.State = iv + 1
-						} else {
-							act.State = iv + 10
+						// preload existing value
+						m.input.SetValue(fmt.Sprintf("%v", act.State))
+						return m, textinput.Blink
 						}
-					}
 				}
 			}
 		}
@@ -309,12 +339,15 @@ func (m model) View() string {
 	}
 
 	switch m.viewState {
+
 	case mainMenu:
 		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
 	case greenhouseList:
 		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
 	case nodeView:
 		return renderNodeView(m)
+	case editActuator:
+        return renderEditActuator(m)	
 	default:
 		return "Unknown state"
 	}
@@ -415,14 +448,23 @@ func renderNodeView(m model) string{
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
 			}
 
-		case int, int32:
-			if v != 0 {
-				value = "ON"
-				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140ff"))
+		// INTEGER actuator:
+		case int, int32, int64:
+			num := fmt.Sprintf("%v", v)
+
+			if act.Unit != "" {
+				// display the actual numeric value
+				value = num + " " + act.Unit
 			} else {
-				value = "OFF"
-				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
+				// backward compatible (rare)
+				if num != "0" {
+					value = "ON"
+				} else {
+					value = "OFF"
+				}
 			}
+
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140"))
 		}
 
 		line := fmt.Sprintf("  %-12s : %s", act.Type, value)
@@ -447,3 +489,15 @@ func renderNodeView(m model) string{
 	return s
 
 }
+
+func renderEditActuator(m model) string {
+    s := lipgloss.NewStyle().Bold(true).Render("Edit Actuator Value\n")
+    s += "----------------------------------------------\n\n"
+
+    s += "Enter new value:\n\n"
+    s += m.input.View() + "\n\n"
+
+    s += "Press ENTER to save, ESC to cancel.\n"
+    return s
+}
+
