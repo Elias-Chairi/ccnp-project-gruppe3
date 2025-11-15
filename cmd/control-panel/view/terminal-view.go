@@ -72,6 +72,7 @@ const (
 	connectedMenu
 	sensorView
 	actuatorView
+	nodeView
 )
 
 type model struct {
@@ -143,10 +144,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "s", "j":
 			limit := 0
 			switch m.viewState {
-			case actuatorView:
+			case nodeView:
 				if m.selectedNode < len(m.nodes) {
-					node := (m.nodes)[m.selectedNode]
-					limit = len(node.Actuators)
+					limit = len(m.nodes[m.selectedNode].Actuators)
 				}
 			default:
 				limit = len(m.choices)
@@ -155,95 +155,146 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 
-		case "left", "backspace", "a", "h":
+		case "left", "a", "h":
 			if m.viewState != mainMenu {
 				nm, _ := m.stack.Pop()
 				m = *nm
 			}
 
-		case "enter", " ":
-			switch m.viewState {
-			case actuatorView:
-				// Makes sure the selected node actually exists
-				if len(m.nodes) > m.selectedNode {
-
-					// Get a pointer to the selected greenhouse node.
-					// Pointer to change the actuators directly
-					node := &(m.nodes[m.selectedNode])
-
-					// Checks that cursor is within the actuator list range.
-					if m.cursor < len(node.Actuators) {
-						// Pointer to the selected actuator
-						act := &node.Actuators[m.cursor]
-						switch v := act.State.(type) {
-						case bool:
-							act.State = !v
-							m.message = fmt.Sprintf("Toggled %s to %v", act.Type, act.State)
-
-						case string:
-							if v == "ON" {
-								act.State = "OFF"
-							} else {
-								act.State = "ON"
-							}
-							m.message = fmt.Sprintf("Toggled %s to %s", act.Type, act.State)
-
-						default:
-							m.message = fmt.Sprintf("Actuator %s has unsupported state type: %T", act.Type, act.State)
-						}
-
-					}
-				} else {
-					m.message = fmt.Sprintf("Greenhouse %c does not exist.", 'A'+m.selectedNode)
-				}
-			}
-
 		case "right", "d", "l":
-			if m.viewState != actuatorView && m.viewState != sensorView {
-				m.stack.Push(m)
-			}
-			switch m.viewState {
-			case mainMenu:
-				switch m.cursor {
-				case 0:
-					// Go to greenhouse list
+    		switch m.viewState {
 
+			case mainMenu:
+				// same behavior as enter
+				if m.cursor == 0 {
+					m.stack.Push(m)
 					m.viewState = greenhouseList
 					m.choices = make([]string, len(m.nodes))
 					for i := range m.nodes {
 						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
 					}
 					m.cursor = 0
-					m.message = "Viewing list of available greenhouses."
-				default:
+				} else {
 					return m, tea.Quit
 				}
 
 			case greenhouseList:
 				if m.cursor < len(m.nodes) {
+					m.stack.Push(m)
 					m.selectedNode = m.cursor
-					m.viewState = connectedMenu
-					m.choices = []string{"View Sensor Data", "View/Change Actuator Status"}
+					m.viewState = nodeView
 					m.cursor = 0
-					m.message = fmt.Sprintf("Connected to Greenhouse %c (Demo Mode)", 'A'+m.selectedNode)
 				}
 
-			case connectedMenu:
-				switch m.cursor {
-				case 0:
-					m.viewState = sensorView
-					m.message = "Displaying sensor data"
-				case 1:
-					m.viewState = actuatorView
+			case nodeView:
+				return m, nil // right stops working entirely
+			}	
+
+		case "backspace":
+			if m.viewState == nodeView {
+				node := &m.nodes[m.selectedNode]
+				if m.cursor < len(node.Actuators) {
+					act := &node.Actuators[m.cursor]
+
+					switch v := act.State.(type) {
+
+					case int:
+						if v <= 10 {
+							if v > 0 {
+								act.State = v - 1
+							}
+						} else {
+							act.State = v - 10
+						}
+
+					case int32:
+						iv := int(v)
+						if iv <= 10 {
+							if iv > 0 {
+								act.State = iv - 1
+							}
+						} else {
+							act.State = iv - 10
+						}
+
+					case int64:
+						iv := int(v)
+						if iv <= 10 {
+							if iv > 0 {
+								act.State = iv - 1
+							}
+						} else {
+							act.State = iv - 10
+						}
+					}
+				}
+				return m, nil
+			}	
+
+		case "enter", " ":
+			switch m.viewState {
+
+			case mainMenu:
+				if m.cursor == 0 {
+					m.stack.Push(m)
+					m.viewState = greenhouseList
+					m.choices = make([]string, len(m.nodes))
+					for i := range m.nodes {
+						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+					}
 					m.cursor = 0
-					m.message = "Displaying actuator status"
+				} else {
+					return m, tea.Quit
+				}
+
+			case greenhouseList:
+				if m.cursor < len(m.nodes) {
+					m.stack.Push(m)
+					m.selectedNode = m.cursor
+					m.viewState = nodeView
+					m.cursor = 0
+				}
+
+			case nodeView:
+				node := &m.nodes[m.selectedNode]
+				if m.cursor < len(node.Actuators) {
+					act := &node.Actuators[m.cursor]
+
+					switch v := act.State.(type) {
+
+					// BOOL actuator
+					case bool:
+						act.State = !v
+
+					// INT actuator → increase
+					case int:
+						if v < 10 {
+							act.State = v + 1
+						} else {
+							act.State = v + 10
+						}
+
+					case int32:
+						iv := int(v)
+						if iv < 10 {
+							act.State = iv + 1
+						} else {
+							act.State = iv + 10
+						}
+
+					case int64:
+						iv := int(v)
+						if iv < 10 {
+							act.State = iv + 1
+						} else {
+							act.State = iv + 10
+						}
+					}
 				}
 			}
 		}
 	}
 
-	// Return the updated model to the Bubble Tea runtime for processing.
-	// Note that we're not returning a command.
 	return m, nil
 }
 
@@ -262,12 +313,8 @@ func (m model) View() string {
 		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
 	case greenhouseList:
 		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
-	case connectedMenu:
-		return renderMenu("Connected to: Greenhouse", m.choices, m.cursor, m.message)
-	case sensorView:
-		return renderSensorView(m.nodes, m.selectedNode)
-	case actuatorView:
-		return renderActuatorView(m)
+	case nodeView:
+		return renderNodeView(m)
 	default:
 		return "Unknown state"
 	}
@@ -314,79 +361,89 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 	return s
 }
 
-func renderSensorView(nodes []entity.Node, selectedNode int) string {
+func renderNodeView(m model) string{
+	node := m.nodes[m.selectedNode]
 
-	s := fmt.Sprintf(" Sensor Data for Greenhouse %c\n", 'A'+selectedNode)
-	s += "--------------------------------\n"
+	title := fmt.Sprintf(" Greenhouse %c - Node Overview\n", 'A'+m.selectedNode)
+	s := title + "----------------------------------------------\n\n"
 
-	node := nodes[selectedNode]
+	// top side ----
+
+	s += lipgloss.NewStyle().Bold(true).Underline(true).Render("Sensors") + "\n"
+
 	if len(node.Sensors) == 0 {
-		s += "No sensors found.\n"
+		s += "  No sensors found.\n"
 	} else {
 		for _, sensor := range node.Sensors {
+			var line string
 			switch v := sensor.Value.(type) {
 			case float64, float32:
-				s += fmt.Sprintf("[%-12s]  %.2f %s\n", sensor.Type, v, sensor.Unit)
+				line = fmt.Sprintf("  %-12s : %.2f %s", sensor.Type, v, sensor.Unit)
 			case int, int32, int64:
-				s += fmt.Sprintf("[%-12s]  %d %s\n", sensor.Type, v, sensor.Unit)
+				line = fmt.Sprintf("  %-12s : %d %s", sensor.Type, v, sensor.Unit)
 			default:
-				s += fmt.Sprintf("[%-12s]  %v %s\n", sensor.Type, v, sensor.Unit)
+				line = fmt.Sprintf("  %-12s : %v %s", sensor.Type, v, sensor.Unit)
 			}
+			s += line + "\n"
 		}
 	}
 
-	s += "\nPress q to quit or backspace to go back.\n"
+	s += "\n"
 
-	return s
-}
+	// bottom side ------
 
-func renderActuatorView(m model) string {
-	if m.selectedNode >= len(m.nodes) {
-		return fmt.Sprintf("Greenhouse %c not found.\n", 'A'+m.selectedNode)
-	}
-
-	s := fmt.Sprintf("  Actuator Status for Greenhouse %c\n", 'A'+m.selectedNode)
-	s += "-----------------------------------\n"
-
-	node := (m.nodes)[m.selectedNode]
-	if len(node.Actuators) == 0 {
-		s += "No actuators found.\n"
-		return s
-	}
+	s += lipgloss.NewStyle().Bold(true).Underline(true).Render("Actuators") + "\n"
 
 	highlight := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#e1ce40ff"))
+		Foreground(lipgloss.Color("#13d1cbff"))
 
-	for i, act := range (m.nodes)[m.selectedNode].Actuators {
+	for i, act := range node.Actuators {
 
-		var style lipgloss.Style
+		var (
+			value string
+			style lipgloss.Style
+		)
 
 		switch v := act.State.(type) {
-		case string:
-			switch v {
-			case "OFF":
-				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
-			case "ON":
+		case bool:
+			if v {
+				value = "ON"
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140ff"))
-			default:
-				style = lipgloss.NewStyle()
+			} else {
+				value = "OFF"
+				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
 			}
-		default:
-			style = lipgloss.NewStyle()
+
+		case int, int32:
+			if v != 0 {
+				value = "ON"
+				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#5de140ff"))
+			} else {
+				value = "OFF"
+				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
+			}
 		}
 
-		line := fmt.Sprintf("[%-10s]  %-3v", act.Type, act.State)
-		coloredLine := style.Render(line)
+		line := fmt.Sprintf("  %-12s : %s", act.Type, value)
+		colored := style.Render(line)
 
+		cursor := "  "
 		if i == m.cursor {
-			s += highlight.Render(coloredLine) + "\n"
-		} else {
-			s += coloredLine + "\n"
+			cursor = "> "
+			colored = highlight.Render(colored)
 		}
+
+		s += cursor + colored + "\n"
 	}
 
-	s += "\nUse ↑/↓ to navigate, → to toggle, ← to go back, q to quit.\n"
-	s += "\n" + m.message
+
+	s += "\n----------------------------------------------\n"
+	s += " ↑/↓ navigate actuators | enter/space toggle | ← back | q quit\n"
+	if m.message != "" {
+		s += "\n" + m.message + "\n"
+	}
+
 	return s
+
 }
