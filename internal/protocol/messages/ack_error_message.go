@@ -25,6 +25,14 @@ func AckSuccessMessage() AckErrorMessage {
 	}
 }
 
+// NewAckMessage creates an ACK_SUCCESS message with the given data.
+func NewAckMessage(data string) AckErrorMessage {
+	return AckErrorMessage{
+		Code: constants.ACK_SUCCESS,
+		Data: data,
+	}
+}
+
 // NewAckNodeListMessage creates an ACK_SUCCESS message containing a list of nodes.
 func NewAckNodeListMessage(nodes []entity.Node) (*AckErrorMessage, error) {
 	var tlvs []encoding.TLV

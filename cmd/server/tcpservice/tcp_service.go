@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
@@ -98,12 +99,26 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 
 		// create and store unique node ID
 		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
-		// todo: send ID to node
-		// todo: send new node to control panel(s)
+		// send assigned node ID back to node
+		writeMessage(conn, nil, messages.NewAckMessage(string([]byte{id})))
+
+		// notify all control panels about new node
+		updateMsg := messages.NewNodeAddedMessage(entity.Node{
+			ID:        id,
+			Sensors:   msg.Sensors,
+			Actuators: msg.Actuators,
+		})
+		for _, c := range t.ctrlPanReg.GetAll() {
+			_ = writeMessage(c, nil, updateMsg)
+		}
 
 		defer func() {
 			t.nodeReg.RemoveNodeID(id)
-			// todo: send delete node to control panel(s)
+			// notify all control panels about node removal
+			removeMsg := messages.NewNodeRemovedMessage(id)
+			for _, c := range t.ctrlPanReg.GetAll() {
+				_ = writeMessage(c, nil, removeMsg)
+			}
 		}()
 		return t.handleConn(conn, handleNode)
 
