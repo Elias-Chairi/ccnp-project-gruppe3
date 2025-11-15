@@ -61,13 +61,18 @@ type ControlPanelRegistry struct {
 	ctrlPan []*utilNet.SafeConn
 }
 
-// GetAllExcept returns all control panel connections except the specified one.
-func (r *ControlPanelRegistry) GetAllExcept(except *utilNet.SafeConn) []*utilNet.SafeConn {
+// GetAll returns all control panel connections.
+func (r *ControlPanelRegistry) GetAll() []*utilNet.SafeConn {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	return r.ctrlPan
+}
+
+// GetAllExcept returns all control panel connections except the specified one.
+func (r *ControlPanelRegistry) GetAllExcept(except *utilNet.SafeConn) []*utilNet.SafeConn {
 	var conns []*utilNet.SafeConn
-	for _, c := range r.ctrlPan {
+	for _, c := range r.GetAll() {
 		if c != except {
 			conns = append(conns, c)
 		}

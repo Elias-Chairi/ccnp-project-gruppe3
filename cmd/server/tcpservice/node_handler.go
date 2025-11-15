@@ -16,8 +16,16 @@ import (
 var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.SENSOR_UPDATE):
-		// todo: handle sensor update
-		// return messages.AckSuccessMessage()
+		msg, err := messages.DecodeSensorUpdateMessage(tlv)
+		if err != nil {
+			// malformed sensor update message, ignore
+			return
+		}
+
+		// forward sensor update to all connected control panels
+		for _, c := range t.ctrlPanReg.GetAll() {
+			_ = writeMessage(c, nil, messages.NewSensorUpdateMessage(msg.Sensor))
+		}
 	case uint8(constants.ACK_ERROR_REQUESTID):
 		req, ok := t.pendingReq.Get(*reqID)
 		if !ok {
@@ -48,9 +56,6 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 		}
 
 		t.pendingReq.Remove(*reqID)
-
-		// todo: handle ack error
-		// return messages.AckSuccessMessage()
 	default:
 		writeMessage(conn, nil, messages.AckErrorMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,

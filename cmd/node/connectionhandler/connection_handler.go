@@ -77,26 +77,26 @@ func (c *ConnectionHandler) Register(node entity.Node) (uint8, error) {
 	assignedID := inner.Value()[0]
 
 	log.Printf("Node successfully registered. Assigned NodeID = %d\n", assignedID)
-	
+
 	return assignedID, nil
 }
 
 // SendSensorUpdate sends a sensor update message from a node to a server
 func (c *ConnectionHandler) SendSensorUpdate(sensor entity.Sensor[any]) error {
-    // Build message (node → server, so no nodeID is needed)
-    msg := messages.NewSensorUpdateMessage(sensor)
+	// Build message (node → server, so no nodeID is needed)
+	msg := messages.NewSensorUpdateMessage(sensor)
 
-    // Encode into raw TLV bytes
-    encoded, err := msg.Encode()
-    if err != nil {
-        return fmt.Errorf("failed to encode sensor update: %w", err)
-    }
+	// Encode into raw TLV bytes
+	tlv, err := msg.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode sensor update: %w", err)
+	}
 
-    // Write to TCP connection
-    _, err = c.conn.Write(encoded)
-    if err != nil {
-        return fmt.Errorf("failed to send sensor update: %w", err)
-    }
+	// Write to TCP connection
+	_, err = c.conn.Write(tlv.Encode())
+	if err != nil {
+		return fmt.Errorf("failed to send sensor update: %w", err)
+	}
 
-    return nil
+	return nil
 }
