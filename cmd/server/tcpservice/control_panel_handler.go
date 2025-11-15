@@ -35,10 +35,12 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 					writeMessage(conn, nil, messages.AckErrorMessage{
 						Code: constants.ERR_UNKNOWN_NODE_ID,
 					})
+				} else {
+					writeMessage(conn, nil, messages.AckErrorMessage{
+						Code: constants.ERR_INTERNAL_SERVER_ERROR,
+					})
 				}
-				writeMessage(conn, nil, messages.AckErrorMessage{
-					Code: constants.ERR_INTERNAL_SERVER_ERROR,
-				})
+				return
 			}
 		case constants.NODE_LIST:
 			// maybe future functionality
