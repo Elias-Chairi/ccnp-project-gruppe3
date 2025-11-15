@@ -47,9 +47,9 @@ func (m *ActuatorUpdateMessage) Encode() (encoding.TLV, error) {
 	tlvs = append(tlvs, actuatorStateTLV)
 
 	value := encoding.EncodeMultipleTLVs(tlvs)
-	mainTLV, err := encoding.NewTLV(uint8(constants.COMMAND), value)
+	mainTLV, err := encoding.NewTLV(uint8(constants.ACTUATOR_UPDATE), value)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create COMMAND TLV: %w", err)
+		return nil, fmt.Errorf("failed to create ACTUATOR_UPDATE TLV: %w", err)
 	}
 	return mainTLV, nil
 }
