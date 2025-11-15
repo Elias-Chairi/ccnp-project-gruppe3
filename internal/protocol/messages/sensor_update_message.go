@@ -86,7 +86,7 @@ func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 	}
 
 	msg := &sensorUpdateMessage{}
-	var sensorFound bool
+	var sensor *entity.Sensor[any] = nil
 
 	for _, innerTLV := range inner {
 		switch innerTLV.Type() {
@@ -97,23 +97,22 @@ func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 			id := innerTLV.Value()[0]
 			msg.NodeID = &id
 		case uint8(constants.SENSOR_ENTRY):
-			if sensorFound {
+			if sensor != nil {
 				return nil, fmt.Errorf("duplicate SENSOR_ENTRY")
 			}
-			sensor, err := encoding.DecodeSensorEntry(innerTLV)
+			sensor, err = encoding.DecodeSensorEntry(innerTLV)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode sensor entry: %w", err)
 			}
-			msg.Sensor = *sensor
-			sensorFound = true
 		default:
 			return nil, fmt.Errorf("unknown TLV %x inside SENSOR_UPDATE", innerTLV.Type())
 		}
 	}
 
-	if !sensorFound {
+	if sensor == nil {
 		return nil, fmt.Errorf("sensor entry not found in SENSOR_UPDATE message")
 	}
+	msg.Sensor = *sensor
 
 	return msg, nil
 }
