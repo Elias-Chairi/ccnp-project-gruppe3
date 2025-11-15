@@ -65,20 +65,16 @@ func (c *ConnectionHandler) Register(node entity.Node) (uint8, error) {
 		return 0, fmt.Errorf("errorcode %d: register response is error: %s", ack.Code, ack.Data)
 	}
 
-	inner, err := encoding.DecodeMultipleTLVs([]byte(ack.Data))
+	inner, err := encoding.DecodeTLV([]byte(ack.Data))
 	if err != nil {
 		return 0, fmt.Errorf("failed to decode inner TLVs: %w", err)
 	}
 
-	if len(inner) == 0 {
-    	return 0, fmt.Errorf("missing NodeID TLV in ACK response")
-	}
-
-	if inner[0].Length() != 1 {
+	if inner.Length() != 1 {
 		return 0, fmt.Errorf("invalid NodeID TLV length")
 	}
 
-	assignedID := inner[0].Value()[0]
+	assignedID := inner.Value()[0]
 
 	log.Printf("Node successfully registered. Assigned NodeID = %d\n", assignedID)
 	

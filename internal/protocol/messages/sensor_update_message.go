@@ -86,7 +86,7 @@ func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 	}
 
 	msg := &sensorUpdateMessage{}
-	var sensor *entity.Sensor[any] = nil
+	var sensor *entity.Sensor[any]
 
 	for _, innerTLV := range inner {
 		switch innerTLV.Type() {

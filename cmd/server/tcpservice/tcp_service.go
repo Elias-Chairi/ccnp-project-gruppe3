@@ -96,6 +96,8 @@ func (t *tcpService) handleRegistration(conn net.Conn) error {
 
 		// create and store unique node ID
 		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
+		//todo: send ID to node
+
 
 		// when function returns, remove node ID from registry
 		// todo: send new node to control panel(s)
