@@ -40,7 +40,7 @@ func NewCommandMessageWithNode(nodeSelector selectors.NodeSelector, actuatorSele
 }
 
 // Encode encodes the COMMAND message to bytes.
-func (m *commandMessage) Encode() ([]byte, error) {
+func (m *commandMessage) Encode() (encoding.TLV, error) {
 	var tlvs []encoding.TLV
 
 	// Encode node selector
@@ -75,7 +75,7 @@ func (m *commandMessage) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create COMMAND TLV: %w", err)
 	}
-	return mainTLV.Encode(), nil
+	return mainTLV, nil
 }
 
 // Type returns the message type.

@@ -60,22 +60,25 @@ func processRequest(data []byte, src *net.UDPAddr) {
 		log.Printf("error dialing back to sender: %v", err)
 		return
 	}
+	defer replyConn.Close() //Ensures the UDP socket always closes, even if Write or Decode fails.
 
 	// create ack message
 	msg := messages.AckSuccessMessage()
-	encodedMsg, err := msg.Encode()
+	tlv, err := msg.Encode()
 	if err != nil {
 		log.Printf("error encoding ACK message: %v", err)
 		return
 	}
 
-	// send ACK message
-	_, err = replyConn.Write(encodedMsg)
+	// Encode TLV to bytes before writing
+	b := tlv.Encode()
+	
+	// Send ACK message
+	_, err = replyConn.Write(b)
 	if err != nil {
 		log.Printf("error writing ACK message: %v", err)
 		return
 	}
-	_ = replyConn.Close()
 
 	log.Printf("Replied to %v with ACK message\n", src)
 }

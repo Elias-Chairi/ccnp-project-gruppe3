@@ -13,27 +13,40 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
 
-var nodeRegistry = NewNodeRegistry()
-var controlPanelRegistry = &ControlPanelRegistry{}
-
-var tcpServiceAddress = net.TCPAddr{
-	// localhost address
-	IP: net.ParseIP("127.0.0.1"),
-	// port sat in protocol document
-	Port: 6000,
-}
-
 const readDeadline = 5 * time.Second
 
-func StartTCPService() {
+type tcpService struct {
+	IP      net.IP
+	Port    int
+	Timeout time.Duration
 
-	listener, err := net.ListenTCP("tcp4", &tcpServiceAddress)
+	pendingReq *PendingRequests
+	nodeReg    *NodeRegistry
+	ctrlPanReg *ControlPanelRegistry
+}
+
+// NewTcpService creates a new TCP service with the given parameters.
+func NewTcpService(ip net.IP, port int, timeout time.Duration) *tcpService {
+	return &tcpService{
+		IP:      ip,
+		Port:    port,
+		Timeout: timeout,
+	}
+}
+
+// Start starts the TCP service, listening for incoming connections and handling them.
+func (t *tcpService) Start() {
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: t.IP, Port: t.Port})
 	if err != nil {
 		log.Fatal("Error listening TCP:", err)
 	}
 	defer func() {
 		_ = listener.Close()
 	}()
+
+	t.nodeReg = NewNodeRegistry()
+	t.ctrlPanReg = &ControlPanelRegistry{}
+	t.pendingReq = NewPendingRequests()
 
 	log.Printf("Listening on: %s\n", listener.Addr())
 
@@ -45,7 +58,7 @@ func StartTCPService() {
 		}
 		go func() {
 			log.Println("New connection from:", conn.RemoteAddr())
-			if err := handleRegistration(conn); err != nil {
+			if err := t.handleRegistration(conn); err != nil {
 				if isConnClosedErr(err) {
 					log.Println("Connection closed by client:", conn.RemoteAddr())
 				} else {
@@ -63,87 +76,98 @@ func isConnClosedErr(err error) bool {
 
 // handleRegistration handles the registration process and all further communication with the client.
 // Only returns when the connection is closed or an unrecoverable error occurs.
-func handleRegistration(conn net.Conn) error {
+func (t *tcpService) handleRegistration(conn net.Conn) error {
 	defer func() {
 		_ = conn.Close()
 	}()
 
-	msg, err := encoding.ReadNextMessage(conn, readDeadline)
+	tlv, _, err := encoding.ReadNextMessage(conn, readDeadline)
 	if err != nil {
 		return fmt.Errorf("error reading registration message: %w", err)
 	}
 
 	// handle based on registration type
-	switch msg.TLV.Type() {
+	switch tlv.Type() {
 	case uint8(constants.REGISTER_NODE):
-		msg, err := messages.DecodeRegisterNodeMessage(msg.TLV)
+		msg, err := messages.DecodeRegisterNodeMessage(tlv)
 		if err != nil {
 			return fmt.Errorf("error decoding register node message %w", err)
 		}
 
 		// create and store unique node ID
-		id := nodeRegistry.CreateNodeID(conn, msg.Sensors, msg.Actuators)
+		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
+		//todo: send ID to node
+
 
 		// when function returns, remove node ID from registry
 		// todo: send new node to control panel(s)
 
 		defer func() {
-			nodeRegistry.RemoveNodeID(id)
+			t.nodeReg.RemoveNodeID(id)
 			// todo: send delete node to control panel(s)
 		}()
-		return handleConn(conn, handleNode)
+		return t.handleConn(conn, handleNode)
 
 	case uint8(constants.REGISTER_CONTROL):
-		_, err := messages.DecodeRegisterControlMessage(msg.TLV)
+		_, err := messages.DecodeRegisterControlMessage(tlv)
 		if err != nil {
 			return fmt.Errorf("error decoding register control panel message %w", err)
 		}
-		controlPanelRegistry.AddControlPanel(conn)
-		defer controlPanelRegistry.RemoveControlPanel(conn)
+		t.ctrlPanReg.AddControlPanel(conn)
+		defer t.ctrlPanReg.RemoveControlPanel(conn)
 
-		msg, err := messages.NewAckNodeListMessage(nodeRegistry.GetAllNodes())
+		msg, err := messages.NewAckNodeListMessage(t.nodeReg.GetAllNodes())
 		if err == nil {
-			encoded, err := msg.Encode()
-			if err == nil {
-				_, _ = conn.Write(encoded)
-			}
+			_ = t.writeMessage(conn, msg) // ignoring error sending response
 		}
-		return handleConn(conn, handleControlPanel)
+		return t.handleConn(conn, handleControlPanel)
 	default:
-		return fmt.Errorf("invalid registration type %v", msg.TLV.Type())
+		return fmt.Errorf("invalid registration type %v", tlv.Type())
 	}
 }
 
 // messageHandler is a function that handles a single top-level message from a connection.
-type messageHandler func(topLevelMessage *encoding.Message) messages.AckErrorMessage
+type messageHandler func(tlv encoding.TLV) messages.AckErrorMessage
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
 // Read loop continues until the connection is closed.
-func handleConn(conn net.Conn, f messageHandler) error {
+func (t *tcpService) handleConn(conn net.Conn, f messageHandler) error {
 	for {
-		msg, err := encoding.ReadNextMessage(conn, readDeadline)
+		msg, _, err := encoding.ReadNextMessage(conn, readDeadline)
+		// todo: Request id ?????
 		if err != nil {
 			if !isConnClosedErr(err) {
-				_ = sendResponse(conn, messages.AckErrorMessage{
+				// send error message before closing connection
+				_ = t.writeMessage(conn, messages.AckErrorMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
 			return err
 		}
-		_ = sendResponse(conn, f(msg)) // ignoring error sending response
+		// send response, ignoring errors
+		_ = t.writeMessage(conn, f(msg))
 	}
 }
 
-// sendResponse encodes and sends a message over the connection.
-func sendResponse(conn net.Conn, message messages.Message) error {
-	encodedMsg, err := message.Encode()
+func (t *tcpService) writeMessage(conn net.Conn, msg messages.TopLevelMessage) error {
+	tlv, err := msg.Encode()
 	if err != nil {
-		return fmt.Errorf("failed to encode response message: %w", err)
+		return fmt.Errorf("error encoding response message: %w", err)
 	}
-	_, err = conn.Write(encodedMsg)
+
+	var data []byte
+	switch tlv.Type() {
+	case uint8(constants.COMMAND), uint8(constants.ACK_ERROR_REQUESTID):
+		data = tlv.EncodeWithRequestID(0)
+		// todo: add data to pending in tcpService
+	default:
+		data = tlv.Encode()
+	}
+
+	_, err = conn.Write(data)
 	if err != nil {
-		return fmt.Errorf("failed to send response message: %w", err)
+		return fmt.Errorf("error writing response message: %w", err)
 	}
 	return nil
 }

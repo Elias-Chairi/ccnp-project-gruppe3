@@ -12,9 +12,12 @@
 // contains zero or more nested TLVs. Decoders validate the type and inner TLVs.
 package messages
 
-import "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+import (
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
+)
 
-type Message interface {
-	Encode() ([]byte, error)
+type TopLevelMessage interface {
+	Encode() (encoding.TLV, error)
 	Type() constants.MessageType
 }

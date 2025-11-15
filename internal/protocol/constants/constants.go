@@ -16,20 +16,21 @@ package constants
 type MessageType uint8
 
 const (
-	DISCOVERY        MessageType = 0x41
-	REGISTER_NODE    MessageType = 0x42
-	REGISTER_CONTROL MessageType = 0x43
-	SENSOR_UPDATE    MessageType = 0x44
-	ACTUATOR_UPDATE  MessageType = 0x45
-	NODE_ADDED       MessageType = 0x46
-	NODE_REMOVED     MessageType = 0x47
-	COMMAND          MessageType = 0x48
-	ACK_ERROR        MessageType = 0x49
+	DISCOVERY           MessageType = 0x41
+	REGISTER_NODE       MessageType = 0x42
+	REGISTER_CONTROL    MessageType = 0x43
+	SENSOR_UPDATE       MessageType = 0x44
+	ACTUATOR_UPDATE     MessageType = 0x45
+	NODE_ADDED          MessageType = 0x46
+	NODE_REMOVED        MessageType = 0x47
+	COMMAND             MessageType = 0x48
+	ACK_ERROR           MessageType = 0x49
+	ACK_ERROR_REQUESTID MessageType = 0x50
 )
 
 func (m MessageType) IsValid() bool {
 	switch m {
-	case DISCOVERY, REGISTER_NODE, REGISTER_CONTROL, SENSOR_UPDATE, COMMAND, ACK_ERROR:
+	case DISCOVERY, REGISTER_NODE, REGISTER_CONTROL, SENSOR_UPDATE, ACTUATOR_UPDATE, NODE_ADDED, NODE_REMOVED, COMMAND, ACK_ERROR, ACK_ERROR_REQUESTID:
 		return true
 	default:
 		return false

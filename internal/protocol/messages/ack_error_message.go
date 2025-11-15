@@ -49,7 +49,7 @@ func (m AckErrorMessage) Type() constants.MessageType {
 
 // Encode encodes the ACK/ERROR message to bytes.
 // TLV: [Type:ACK_ERROR][Length:N][Value: Code(1) + Data(N-1)]
-func (m AckErrorMessage) Encode() ([]byte, error) {
+func (m AckErrorMessage) Encode() (encoding.TLV, error) {
 	value := make([]byte, 1+len(m.Data))
 	value[0] = uint8(m.Code)
 	copy(value[1:], m.Data)
@@ -58,7 +58,7 @@ func (m AckErrorMessage) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ACK_ERROR TLV: %w", err)
 	}
-	return tlv.Encode(), nil
+	return tlv, nil
 }
 
 // IsError reports whether this is an error message (code != ACK_SUCCESS).

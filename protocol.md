@@ -82,10 +82,10 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 **Top-level**: TLV, does not need request/response matching since it does not make sense to write multiple registrations on the same connection.
 
-| Type (hex)                | Direction              | Expected value                        | Response                  |
-| ------------------------- | ---------------------- | ------------------------------------- | ------------------------- |
-| `0x42` – REGISTER_NODE    | Node → Server (TCP)    | [List of Actuator and Sensor entries] | ACK[SINGLE_NODE]/ERR      |
-| `0x43` – REGISTER_CONTROL | Control → Server (TCP) |                                       | ACK[List of Node Entries] |
+| Type (hex)                | Direction              | Expected value                        | Response                      |
+| ------------------------- | ---------------------- | ------------------------------------- | ----------------------------- |
+| `0x42` – REGISTER_NODE    | Node → Server (TCP)    | [List of Actuator and Sensor entries] | ACK[SINGLE_NODE]/ERR          |
+| `0x43` – REGISTER_CONTROL | Control → Server (TCP) |                                       | ACK[List of Node Entries]/ERR |
 
 #### Sensor Update
 
@@ -110,11 +110,24 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 - One control panel sending multiple commands
 - The server forwarding multiple commands to one node.
 
-| Type (hex)         | Direction                  | Expected value                                  | Response |
-| ------------------ | -------------------------- | ----------------------------------------------- | -------- |
-| `0x48` – COMMAND   | Control → Server (TCP)     | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERR  |
-| `0x48` – COMMAND   | Server → Node (TCP)        | [ActuatorSelector][ActuatorState]               | ACK/ERR  |
-| `0x49` – ACK/ERROR | Node/Server → Sender (TCP) | [ACK/ERROR]                                     |          |
+| Type (hex)       | Direction              | Expected value                                  | Response            |
+| ---------------- | ---------------------- | ----------------------------------------------- | ------------------- |
+| `0x48` – COMMAND | Control → Server (TCP) | [NodeSelector][ActuatorSelector][ActuatorState] | ACK/ERROR_REQUESTID |
+| `0x48` – COMMAND | Server → Node (TCP)    | [ActuatorSelector][ActuatorState]               | ACK/ERROR_REQUESTID |
+
+#### Acknowledgment and Error
+
+**Purpose**: Acknowledge successful processing of a command or registration, or report an error.
+
+**Top-level**:
+
+- `ACK/ERROR_REQUESTID`: TRLV, used for commands that need request/response matching.
+- `ACK/ERROR`: TLV, used for registrations that do not need request/response matching
+
+| Type (hex)                   | Direction                   | Expected value | Response |
+| ---------------------------- | --------------------------- | -------------- | -------- |
+| `0x49` – ACK/ERROR           | Server → Node/Control (TCP) | [ACK/ERROR]    |          |
+| `0x50` – ACK/ERROR_REQUESTID | Node/Server → Sender (TCP)  | [ACK/ERROR]    |          |
 
 ### Node Selectors codes
 
