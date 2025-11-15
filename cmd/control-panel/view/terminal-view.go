@@ -72,11 +72,7 @@ type viewState int
 const (
 	mainMenu viewState = iota
 	greenhouseList
-	connectedMenu
-	sensorView
-	actuatorView
 	nodeView
-	editActuator
 )
 
 type model struct {
@@ -91,6 +87,7 @@ type model struct {
 	loadingmsg string
 	editingActuator int
 	input textinput.Model
+	isEditingNumber bool
 }
 
 func initialModel() tea.Model {
@@ -112,41 +109,28 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	if m.viewState == editActuator {
-    var cmd tea.Cmd
+	if m.isEditingNumber {
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
 
-    // Update the text input component
-    m.input, cmd = m.input.Update(msg)
-
-		switch msg := msg.(type) {
+		switch key := msg.(type) {
 		case tea.KeyMsg:
-			switch msg.String() {
-
+			switch key.String() {
 			case "enter":
-				// Save number
-				valStr := m.input.Value()
 				var num int
-				_, err := fmt.Sscanf(valStr, "%d", &num)
-				if err == nil {
-					// Apply the new value
-					m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
-				}
-
-				// Exit edit mode
-				prev, _ := m.stack.Pop()
-				m = *prev
+				fmt.Sscanf(m.input.Value(), "%d", &num)
+				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
+				m.isEditingNumber = false
 				return m, nil
 
 			case "esc", "escape":
-				// Cancel edit mode
-				prev, _ := m.stack.Pop()
-				m = *prev
+				m.isEditingNumber = false
 				return m, nil
 			}
 		}
-
-    	return m, cmd
+		return m, cmd
 	}
+
 	switch msg := msg.(type) {
 
 	case setNodes:
@@ -308,17 +292,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					case int, int32, int64:
 						// enter edit mode
-						m.stack.Push(m)
-						m.viewState = editActuator
-						m.editingActuator = m.cursor
+					m.isEditingNumber = true
+					m.editingActuator = m.cursor
 
-						m.input = textinput.New()
-						m.input.Placeholder = "Enter number"
-						m.input.Focus()
+					m.input = textinput.New()
+					m.input.Placeholder = "Enter number"
+					m.input.Focus()
 
-						// preload existing value
-						m.input.SetValue(fmt.Sprintf("%v", act.State))
-						return m, textinput.Blink
+					// preload existing value
+					m.input.SetValue(fmt.Sprintf("%v", act.State))
+
+					return m, textinput.Blink
 						}
 				}
 			}
@@ -346,8 +330,6 @@ func (m model) View() string {
 		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
 	case nodeView:
 		return renderNodeView(m)
-	case editActuator:
-        return renderEditActuator(m)	
 	default:
 		return "Unknown state"
 	}
@@ -369,7 +351,7 @@ func renderError(err error) string {
 	s += "\n-----------------------------\n"
 	s += fmt.Sprintf("Error: %s\n", err.Error())
 
-	s += "\nPress ↑/↓ and Enter to select. Press backspace to go back or q to quit.\n"
+	s += "\nPress ↑/↓ and Enter to select. Press ← to go back or q to quit.\n"
 	return s
 }
 
@@ -387,25 +369,26 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 		s += fmt.Sprintf("%s %s\n", prefix, choice)
 	}
 
-	s += "\nPress ↑/↓ and Enter to select. Press backspace to go back or q to quit.\n"
+	s += "\nPress ↑/↓ and Enter to select. Press ← to go back or q to quit.\n"
 	if message != "" {
 		s += "\n" + message
 	}
 	return s
 }
 
-func renderNodeView(m model) string{
+func renderNodeView(m model) string {
 	node := m.nodes[m.selectedNode]
 
 	title := fmt.Sprintf(" Greenhouse %c - Node Overview\n", 'A'+m.selectedNode)
-	s := title + "----------------------------------------------\n\n"
+	header := title + "----------------------------------------------\n\n"
 
-	// top side ----
+	//  LEFT COLUMN: SENSORS
 
-	s += lipgloss.NewStyle().Bold(true).Underline(true).Render("Sensors") + "\n"
+	var sensors string
+	sensors += lipgloss.NewStyle().Bold(true).Underline(true).Render("Sensors") + "\n"
 
 	if len(node.Sensors) == 0 {
-		s += "  No sensors found.\n"
+		sensors += "  No sensors found.\n"
 	} else {
 		for _, sensor := range node.Sensors {
 			var line string
@@ -417,19 +400,23 @@ func renderNodeView(m model) string{
 			default:
 				line = fmt.Sprintf("  %-12s : %v %s", sensor.Type, v, sensor.Unit)
 			}
-			s += line + "\n"
+			sensors += line + "\n"
 		}
 	}
 
-	s += "\n"
+	// pad the sensors column so both columns line up
+	sensorsStyle := lipgloss.NewStyle().Width(40)
+	sensors = sensorsStyle.Render(sensors)
 
-	// bottom side ------
 
-	s += lipgloss.NewStyle().Bold(true).Underline(true).Render("Actuators") + "\n"
+	//  RIGHT COLUMN: ACTUATORS
 
 	highlight := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#13d1cbff"))
+
+	var actuators string
+	actuators += lipgloss.NewStyle().Bold(true).Underline(true).Render("Actuators") + "\n"
 
 	for i, act := range node.Actuators {
 
@@ -439,6 +426,7 @@ func renderNodeView(m model) string{
 		)
 
 		switch v := act.State.(type) {
+
 		case bool:
 			if v {
 				value = "ON"
@@ -448,15 +436,15 @@ func renderNodeView(m model) string{
 				style = lipgloss.NewStyle().Foreground(lipgloss.Color("#e52e19ff"))
 			}
 
-		// INTEGER actuator:
 		case int, int32, int64:
 			num := fmt.Sprintf("%v", v)
 
-			if act.Unit != "" {
-				// display the actual numeric value
+			// If editing, show the text input
+			if m.isEditingNumber && i == m.editingActuator {
+				value = m.input.View()
+			} else if act.Unit != "" {
 				value = num + " " + act.Unit
 			} else {
-				// backward compatible (rare)
 				if num != "0" {
 					value = "ON"
 				} else {
@@ -468,36 +456,35 @@ func renderNodeView(m model) string{
 		}
 
 		line := fmt.Sprintf("  %-12s : %s", act.Type, value)
-		colored := style.Render(line)
 
-		cursor := "  "
 		if i == m.cursor {
-			cursor = "> "
-			colored = highlight.Render(colored)
+			line = highlight.Render(line)
+		} else {
+			line = style.Render(line)
 		}
 
-		s += cursor + colored + "\n"
+		actuators += line + "\n"
 	}
 
+	actuatorsStyle := lipgloss.NewStyle().Width(40)
+	actuators = actuatorsStyle.Render(actuators)
 
-	s += "\n----------------------------------------------\n"
-	s += " ↑/↓ navigate actuators | enter/space toggle | ← back | q quit\n"
+	//  JOIN BOTH COLUMNS
+	combined := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		sensors,
+		actuators,
+	)
+
+
+	footer := "\n----------------------------------------------\n" +
+			" ↑/↓ navigate actuators | enter/space toggle | ← back | q quit\n"
+
 	if m.message != "" {
-		s += "\n" + m.message + "\n"
+		footer += "\n" + m.message + "\n"
 	}
 
-	return s
-
+	return header + combined + footer
 }
 
-func renderEditActuator(m model) string {
-    s := lipgloss.NewStyle().Bold(true).Render("Edit Actuator Value\n")
-    s += "----------------------------------------------\n\n"
-
-    s += "Enter new value:\n\n"
-    s += m.input.View() + "\n\n"
-
-    s += "Press ENTER to save, ESC to cancel.\n"
-    return s
-}
 
