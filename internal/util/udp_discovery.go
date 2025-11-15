@@ -7,10 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/server/udpservice"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 )
+
+var MULTICAST_ADDR = net.UDPAddr{
+	IP:   net.ParseIP("224.0.0.1"),
+	Port: 9999,
+}
 
 var localhostAddr = net.UDPAddr{
 	IP:   net.ParseIP("127.0.0.1"), // localhost
@@ -32,7 +36,7 @@ func FindServer(searchDuration time.Duration) ([]net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode discovery message: %w", err)
 	}
-	_, err = conn.WriteToUDP(msgEncoded, &udpservice.MULTICAST_ADDR)
+	_, err = conn.WriteToUDP(msgEncoded, &MULTICAST_ADDR)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write to group: %w", err)
 	}

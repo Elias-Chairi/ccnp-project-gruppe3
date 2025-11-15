@@ -11,6 +11,7 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 const readDeadline = 5 * time.Second
@@ -56,13 +57,14 @@ func (t *tcpService) Start() {
 			log.Println("Failed to accept connection:", err)
 			continue
 		}
+		safeConn := utilNet.NewSafeConn(conn)
 		go func() {
-			log.Println("New connection from:", conn.RemoteAddr())
-			if err := t.handleRegistration(conn); err != nil {
+			log.Println("New connection from:", safeConn.RemoteAddr())
+			if err := t.handleRegistration(safeConn); err != nil {
 				if isConnClosedErr(err) {
-					log.Println("Connection closed by client:", conn.RemoteAddr())
+					log.Println("Connection closed by client:", safeConn.RemoteAddr())
 				} else {
-					log.Println("Connection closed with unrecoverable error from", conn.RemoteAddr(), ":", err)
+					log.Println("Connection closed with unrecoverable error from", safeConn.RemoteAddr(), ":", err)
 				}
 			}
 		}()
@@ -76,7 +78,7 @@ func isConnClosedErr(err error) bool {
 
 // handleRegistration handles the registration process and all further communication with the client.
 // Only returns when the connection is closed or an unrecoverable error occurs.
-func (t *tcpService) handleRegistration(conn net.Conn) error {
+func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 	defer func() {
 		_ = conn.Close()
 	}()
@@ -102,7 +104,7 @@ func (t *tcpService) handleRegistration(conn net.Conn) error {
 			t.nodeReg.RemoveNodeID(id)
 			// todo: send delete node to control panel(s)
 		}()
-		return t.handleConn(t, conn, handleNode)
+		return t.handleConn(conn, handleNode)
 
 	case uint8(constants.REGISTER_CONTROL):
 		_, err := messages.DecodeRegisterControlMessage(tlv)
@@ -114,39 +116,37 @@ func (t *tcpService) handleRegistration(conn net.Conn) error {
 
 		msg, err := messages.NewAckNodeListMessage(t.nodeReg.GetAllNodes())
 		if err == nil {
-			_ = t.writeMessage(conn, nil, msg) // ignoring error sending response
+			_ = writeMessage(conn, nil, msg) // ignoring error sending response
 		}
-		return t.handleConn(t, conn, handleControlPanel)
+		return t.handleConn(conn, handleControlPanel)
 	default:
 		return fmt.Errorf("invalid registration type %v", tlv.Type())
 	}
 }
 
 // messageHandler is a function that handles a single top-level message from a connection.
-type messageHandler func(tcp *tcpService, tlv encoding.TLV) messages.TopLevelMessage
+type messageHandler func(t *tcpService, safeConn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16)
 
 // Generic connection handler.
 // Reads TLVs from the connection and passes them to the provided handler function.
 // Read loop continues until the connection is closed.
-func (t *tcpService) handleConn(tcp *tcpService, conn net.Conn, f messageHandler) error {
+func (t *tcpService) handleConn(conn *utilNet.SafeConn, handle messageHandler) error {
 	for {
 		msg, reqID, err := encoding.ReadNextMessage(conn, readDeadline)
-		// todo: Request id ?????
 		if err != nil {
 			if !isConnClosedErr(err) {
 				// send error message before closing connection
-				_ = t.writeMessage(conn, nil, messages.AckErrorMessage{
+				_ = writeMessage(conn, nil, messages.AckErrorMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
 			return err
 		}
-		// send response, ignoring errors
-		_ = t.writeMessage(conn, reqID, f(tcp, msg))
+		handle(t, conn, msg, reqID)
 	}
 }
 
-func (t *tcpService) writeMessage(conn net.Conn, reqID *uint16, msg messages.TopLevelMessage) error {
+func writeMessage(conn *utilNet.SafeConn, reqID *uint16, msg messages.TopLevelMessage) error {
 	tlv, err := msg.Encode()
 	if err != nil {
 		return fmt.Errorf("error encoding response message: %w", err)

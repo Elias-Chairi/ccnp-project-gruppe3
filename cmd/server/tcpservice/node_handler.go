@@ -1,7 +1,8 @@
 package tcpservice
 
 import (
-	"net"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
@@ -9,32 +10,63 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
-var handleNode messageHandler = func(t *tcpService, msg encoding.TLV) messages.TopLevelMessage {
-	switch msg.Type() {
+var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
+	switch tlv.Type() {
 	case uint8(constants.SENSOR_UPDATE):
 		// todo: handle sensor update
-		return messages.AckSuccessMessage()
-	case uint8(constants.ACK_ERROR):
-		// todo: handle ack error
-		return messages.AckSuccessMessage()
-	default:
-		return messages.AckErrorMessage{
-			Code: constants.ERR_INVALID_MESSAGE_TYPE,
+		// return messages.AckSuccessMessage()
+	case uint8(constants.ACK_ERROR_REQUESTID):
+		req, ok := t.pendingReq.Get(*reqID)
+		if !ok {
+			// unknown request ID, ignore
+			return
 		}
+
+		switch reqMsg := req.Msg.(type) {
+		case *messages.CommandMessage:
+			// command response from node to control panel
+			switch reqMsg.NodeSelector.Type {
+			case constants.SINGLE_NODE:
+				// acknowledge to original sender
+				_ = writeMessage(req.Sender, nil, messages.AckSuccessMessage())
+
+				// forward actuator update to all other control panels
+				for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
+					_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+				}
+			case constants.NODE_LIST:
+				// maybe future functionality
+			case constants.ALL_NODES:
+				// maybe future functionality
+			}
+		default:
+			// unknown original message type, ignore
+			return
+		}
+
+		t.pendingReq.Remove(*reqID)
+
+		// todo: handle ack error
+		// return messages.AckSuccessMessage()
+	default:
+		writeMessage(conn, nil, messages.AckErrorMessage{
+			Code: constants.ERR_INVALID_MESSAGE_TYPE,
+		})
 	}
 }
 
 // NodeRegistry manages node IDs and their associated connections.
 type NodeRegistry struct {
 	mu    sync.RWMutex
-	nodes map[uint8]NodeInfo
+	nodes map[uint8]*NodeInfo
 }
 
 // NodeInfo holds information about a registered node.
 type NodeInfo struct {
-	conn      net.Conn
+	Conn      *utilNet.SafeConn
 	Sensors   []entity.Sensor[any]
 	Actuators []entity.Actuator[any]
 }
@@ -114,18 +146,18 @@ func (r *NodeRegistry) GetAllNodes() []entity.Node {
 // NewNodeRegistry initializes and returns a new NodeRegistry.
 func NewNodeRegistry() *NodeRegistry {
 	return &NodeRegistry{
-		nodes: make(map[uint8]NodeInfo),
+		nodes: make(map[uint8]*NodeInfo),
 	}
 }
 
 // CreateNodeID assigns a unique node ID and stores the connection.
-func (r *NodeRegistry) CreateNodeID(conn net.Conn, sensors []entity.Sensor[any], actuators []entity.Actuator[any]) uint8 {
+func (r *NodeRegistry) CreateNodeID(conn *utilNet.SafeConn, sensors []entity.Sensor[any], actuators []entity.Actuator[any]) uint8 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	nodeID := util.GetUniqueMapKey(r.nodes)
-	r.nodes[nodeID] = NodeInfo{
-		conn:      conn,
+	r.nodes[nodeID] = &NodeInfo{
+		Conn:      conn,
 		Sensors:   sensors,
 		Actuators: actuators,
 	}
@@ -137,4 +169,19 @@ func (r *NodeRegistry) RemoveNodeID(id uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.nodes, id)
+}
+
+var ErrNodeNotFound = errors.New("node not found")
+
+// WriteToNode sends a message to the specified node.
+func (r *NodeRegistry) WriteToNode(id uint8, reqID *uint16, msg messages.TopLevelMessage) error {
+	r.mu.RLock()
+	info, exists := r.nodes[id]
+	r.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("node %d: %w", id, ErrNodeNotFound)
+	}
+
+	return writeMessage(info.Conn, reqID, msg)
 }

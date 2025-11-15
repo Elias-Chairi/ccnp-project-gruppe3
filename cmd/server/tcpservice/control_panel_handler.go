@@ -1,47 +1,91 @@
 package tcpservice
 
 import (
-	"net"
+	"errors"
 	"slices"
 	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
-var handleControlPanel messageHandler = func(t *tcpService, msg encoding.TLV) messages.TopLevelMessage {
-	switch msg.Type() {
+var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
+	switch tlv.Type() {
 	case uint8(constants.COMMAND): // received command from control panel, forward to node
-
-		id := t.pendingReq.Add()
-		return messages.AckSuccessMessage()
-	default:
-		return messages.AckErrorMessage{
-			Code: constants.ERR_INVALID_MESSAGE_TYPE,
+		msg, err := messages.DecodeCommandMessage(tlv, true)
+		if err != nil {
+			writeMessage(conn, nil, messages.AckErrorMessage{
+				Code: constants.ERR_MALFORMED_MESSAGE,
+			})
+			return
 		}
+
+		reqID := t.pendingReq.Add(Request{
+			Msg:    msg,
+			Sender: conn,
+		})
+
+		switch msg.NodeSelector.Type {
+		case constants.SINGLE_NODE:
+			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msg)
+			if err != nil {
+				if errors.Is(err, ErrNodeNotFound) {
+					writeMessage(conn, nil, messages.AckErrorMessage{
+						Code: constants.ERR_UNKNOWN_NODE_ID,
+					})
+				}
+				writeMessage(conn, nil, messages.AckErrorMessage{
+					Code: constants.ERR_INTERNAL_SERVER_ERROR,
+				})
+			}
+		case constants.NODE_LIST:
+			// maybe future functionality
+		case constants.ALL_NODES:
+			// maybe future functionality
+		}
+
+	default:
+		writeMessage(conn, nil, messages.AckErrorMessage{
+			Code: constants.ERR_INVALID_MESSAGE_TYPE,
+		})
 	}
 }
 
 // NodeRegistry manages node IDs and their associated connections.
 type ControlPanelRegistry struct {
-	mu    sync.RWMutex
-	nodes []net.Conn
+	mu      sync.RWMutex
+	ctrlPan []*utilNet.SafeConn
+}
+
+// GetAllExcept returns all control panel connections except the specified one.
+func (r *ControlPanelRegistry) GetAllExcept(except *utilNet.SafeConn) []*utilNet.SafeConn {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var conns []*utilNet.SafeConn
+	for _, c := range r.ctrlPan {
+		if c != except {
+			conns = append(conns, c)
+		}
+	}
+	return conns
 }
 
 // AddControlPanel adds a control panel connection to the registry.
-func (r *ControlPanelRegistry) AddControlPanel(conn net.Conn) {
+func (r *ControlPanelRegistry) AddControlPanel(conn *utilNet.SafeConn) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.nodes = append(r.nodes, conn)
+	r.ctrlPan = append(r.ctrlPan, conn)
 }
 
 // RemoveControlPanel removes the specified control panel connection from the registry.
-func (r *ControlPanelRegistry) RemoveControlPanel(conn net.Conn) {
+func (r *ControlPanelRegistry) RemoveControlPanel(conn *utilNet.SafeConn) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	i := slices.Index(r.nodes, conn)
-	r.nodes = slices.Delete(r.nodes, i, i+1)
+	i := slices.Index(r.ctrlPan, conn)
+	r.ctrlPan = slices.Delete(r.ctrlPan, i, i+1)
 }

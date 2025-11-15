@@ -14,5 +14,5 @@ func main() {
 
 	// log.Println("starting TCP service...")
 	ts := tcpservice.NewTcpService(nil, 6000, 10*time.Second)
-	// ts.Start()
+	ts.Start()
 }
