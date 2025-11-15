@@ -395,18 +395,29 @@ func renderError(err error) string {
 	return s
 }
 
+
 // Renders a menu with the given title, choices, cursor position, and message.
 func renderMenu(title string, choices []string, cursor int, message string) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00aa55")).Render(title)
 	s += "\n-----------------------------\n"
 
-	for i, choice := range choices {
-		prefix := " "
-		if i == cursor {
-			prefix = ">"
-		}
+	var menuHighlight = lipgloss.NewStyle().
+    Bold(true).
+    Background(lipgloss.Color("#000ed6ff")).
+    Foreground(lipgloss.Color("#ffffffff"))
+	menuHighlight = menuHighlight.Width(40)
+	
 
-		s += fmt.Sprintf("%s %s\n", prefix, choice)
+	for i, choice := range choices {
+
+		line := fmt.Sprintf("  %s", choice)
+
+		if i == cursor {
+			// highlight line
+			s += menuHighlight.Render(line) + "\n"
+		} else {
+			s += line + "\n"
+		}
 	}
 
 	s += "\nPress ↑/↓ and Enter to select. Press ← to go back or q to quit.\n"
@@ -456,8 +467,6 @@ func renderNodeView(m model) string {
     Background(lipgloss.Color("#000ed6ff")).
     Foreground(lipgloss.Color("#ffffffff"))
 	highlight = highlight.Width(40)
-
-
 
 	var actuators string
 	actuators += lipgloss.NewStyle().Bold(true).Underline(true).Render("Actuators") + "\n"
