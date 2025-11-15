@@ -16,7 +16,7 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 	case uint8(constants.COMMAND): // received command from control panel, forward to node
 		msg, err := messages.DecodeCommandMessage(tlv, true)
 		if err != nil {
-			writeMessage(conn, nil, messages.AckErrorMessage{
+			_ = writeMessage(conn, nil, messages.AckErrorMessage{
 				Code: constants.ERR_MALFORMED_MESSAGE,
 			})
 			return
@@ -32,11 +32,11 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msg)
 			if err != nil {
 				if errors.Is(err, ErrNodeNotFound) {
-					writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, nil, messages.AckErrorMessage{
 						Code: constants.ERR_UNKNOWN_NODE_ID,
 					})
 				} else {
-					writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, nil, messages.AckErrorMessage{
 						Code: constants.ERR_INTERNAL_SERVER_ERROR,
 					})
 				}

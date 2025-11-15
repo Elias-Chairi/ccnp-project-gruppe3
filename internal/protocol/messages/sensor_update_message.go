@@ -77,7 +77,7 @@ func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 		return nil, fmt.Errorf("data is nil")
 	}
 	if t.Type() != uint8(constants.SENSOR_UPDATE) {
-		return nil, fmt.Errorf("Expected SENSOR_UPDATE type, got %x", t.Type())
+		return nil, fmt.Errorf("expected SENSOR_UPDATE type, got %x", t.Type())
 	}
 
 	inner, err := encoding.DecodeMultipleTLVs(t.Value())

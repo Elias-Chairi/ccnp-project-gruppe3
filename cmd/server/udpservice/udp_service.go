@@ -56,7 +56,9 @@ func processRequest(data []byte, src *net.UDPAddr) {
 		log.Printf("error dialing back to sender: %v", err)
 		return
 	}
-	defer replyConn.Close() //Ensures the UDP socket always closes, even if Write or Decode fails.
+	defer func() {
+		_ = replyConn.Close() //Ensures the UDP socket always closes, even if Write or Decode fails.
+	}()
 
 	// create ack message
 	msg := messages.AckSuccessMessage()
