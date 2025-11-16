@@ -117,9 +117,9 @@ func initialModel() tea.Model {
 		pendingActuator:  map[int]bool{},
 		editingActuators: map[int]bool{},
 		inputFields:      map[int]textinput.Model{},
-		selectedNode: 0,
-		loadingmsg:   "Loading Nodes",
-		err:          nil,
+		selectedNode:     0,
+		loadingmsg:       "Loading Nodes",
+		err:              nil,
 	}
 }
 
@@ -158,8 +158,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case float32, float64:
 					var num float64
 					fmt.Sscanf(raw, "%f", &num)
-					if num < 0 { num = 0 }
-					if num > 1 { num = 1 }
+					if num < 0 {
+						num = 0
+					}
+					if num > 1 {
+						num = 1
+					}
 					m.nodes[m.selectedNode].Actuators[idx].State = num
 				}
 
@@ -183,8 +187,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if len(editCmds) > 0 {
 		return m, tea.Batch(editCmds...)
 	}
-
-
 
 	//main switchmsg
 	switch msg := msg.(type) {
@@ -219,7 +221,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.editingActuators) > 0 {
 			return m, nil
 		}
-
 
 		// Cool, what was the actual key pressed?
 		switch msg.String() {
@@ -348,7 +349,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.inputFields[m.cursor] = ti
 						m.editingActuators[m.cursor] = true
 						return m, textinput.Blink
-
 
 					case float32, float64:
 						// Start editing mode
