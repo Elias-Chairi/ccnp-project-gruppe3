@@ -141,14 +141,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isEditingNumber = false
 				
 				// Start spinner wait
-                m.pendingActuator[m.editingActuator] = true
+				m.pendingActuator[m.editingActuator] = true
 
-                return m, tea.Batch(
-                    inputCmd,
-                    tea.Tick(time.Second, func(t time.Time) tea.Msg {
-                        return actuatorResponseMsg{Index: m.editingActuator}
-                    }),
-                )
+				return m, tea.Batch(
+					inputCmd,
+					tea.Tick(time.Second, func(t time.Time) tea.Msg {
+						return actuatorResponseMsg{Index: m.editingActuator}
+					}),
+				)
 
 			case "esc", "escape":
 				m.isEditingNumber = false
