@@ -100,7 +100,11 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 		// create and store unique node ID
 		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
 		// send assigned node ID back to node
-		writeMessage(conn, nil, messages.NewAckMessage(string([]byte{id})))
+		nodeID, err := encoding.NewTLV(uint8(constants.NODE_ID), []byte{byte(id)})
+		if err != nil {
+			return fmt.Errorf("error creating node ID TLV: %w", err)
+		}
+		writeMessage(conn, nil, messages.NewAckMessage(string(nodeID.Encode())))
 
 		// notify all control panels about new node
 		updateMsg := messages.NewNodeAddedMessage(entity.Node{
@@ -108,17 +112,13 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 			Sensors:   msg.Sensors,
 			Actuators: msg.Actuators,
 		})
-		for _, c := range t.ctrlPanReg.GetAll() {
-			_ = writeMessage(c, nil, updateMsg)
-		}
+		t.NotifyAllControlPanels(updateMsg)
 
 		defer func() {
 			t.nodeReg.RemoveNodeID(id)
 			// notify all control panels about node removal
 			removeMsg := messages.NewNodeRemovedMessage(id)
-			for _, c := range t.ctrlPanReg.GetAll() {
-				_ = writeMessage(c, nil, removeMsg)
-			}
+			t.NotifyAllControlPanels(removeMsg)
 		}()
 		return t.handleConn(conn, handleNode)
 
@@ -137,6 +137,12 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 		return t.handleConn(conn, handleControlPanel)
 	default:
 		return fmt.Errorf("invalid registration type %v", tlv.Type())
+	}
+}
+
+func (t *tcpService) NotifyAllControlPanels(msg messages.TopLevelMessage) {
+	for _, c := range t.ctrlPanReg.GetAll() {
+		_ = writeMessage(c, nil, msg)
 	}
 }
 

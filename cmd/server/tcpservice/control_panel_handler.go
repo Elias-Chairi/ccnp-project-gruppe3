@@ -49,7 +49,7 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 		}
 
 	default:
-		writeMessage(conn, nil, messages.AckErrorMessage{
+		_ = writeMessage(conn, nil, messages.AckErrorMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
 	}

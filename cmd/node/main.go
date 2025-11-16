@@ -22,12 +22,12 @@ func main() {
 			{ID: 5, Type: "FAN", State: false},                     // off
 			{ID: 6, Type: "FAN", Unit: "RPM", State: int32(0)},     // 0 rpm
 			{ID: 7, Type: "LIGHT", State: false},                   // off
-			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(0)},    // 0 lux
+			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(500)},  // 0 lux
 		},
 		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "TEMPERATURE", Unit: "°C"},
-			{ID: 2, Type: "HUMIDITY", Unit: "%"},
-			{ID: 3, Type: "LIGHT", Unit: "lx"},
+			{ID: 1, Type: "TEMPERATURE", Unit: "°C", Value: float32(20.0)},
+			{ID: 2, Type: "HUMIDITY", Unit: "%", Value: float32(50.0)},
+			{ID: 3, Type: "LIGHT", Unit: "lx", Value: float32(100.0)},
 		},
 	}
 
@@ -74,7 +74,7 @@ func main() {
 	onSensorUpdate := func(sensor *entity.Sensor[any]) {
 		log.Printf("Sensor %d, type %s, updated: %v%s\n", sensor.ID, sensor.Type, sensor.Value, sensor.Unit)
 		if err := c.SendSensorUpdate(*sensor); err != nil {
-			log.Printf("Failed to send sensor update: %v\n", err)
+			log.Fatalf("Failed to send sensor update: %v\n", err)
 		}
 	}
 
