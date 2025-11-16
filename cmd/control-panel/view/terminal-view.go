@@ -152,12 +152,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch original.(type) {
 				case int, int32, int64:
 					var num int
-					fmt.Sscanf(raw, "%d", &num)
+					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
+						// Invalid input, exit editing mode
+						delete(m.editingActuators, idx)
+						delete(m.inputFields, idx)
+						break
+					}
 					m.nodes[m.selectedNode].Actuators[idx].State = num
 
 				case float32, float64:
 					var num float64
-					fmt.Sscanf(raw, "%f", &num)
+					if _, err := fmt.Sscanf(raw, "%f", &num); err != nil {
+						// Invalid input, exit editing mode
+						delete(m.editingActuators, idx)
+						delete(m.inputFields, idx)
+						break
+					}
 					if num < 0 {
 						num = 0
 					}
