@@ -138,8 +138,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch key.String() {
 			case "enter":
+
+				raw := m.input.Value()
 				var num int
-				fmt.Sscanf(m.input.Value(), "%d", &num)
+
+				if raw == "" {
+					num = 0
+				} else {
+					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
+						// Invalid input → escape editing mode
+						m.isEditingNumber = false
+						return m, nil
+					}
+				}
+
 				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
 				m.isEditingNumber = false
 
