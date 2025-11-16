@@ -463,9 +463,9 @@ func renderNodeView(m model) string {
 	//  RIGHT COLUMN: ACTUATORS
 
 	highlight := lipgloss.NewStyle().
-    Bold(true).
-    Background(lipgloss.Color("#000ed6ff")).
-    Foreground(lipgloss.Color("#ffffffff"))
+		Bold(true).
+		Background(lipgloss.Color("#000ed6ff")).
+		Foreground(lipgloss.Color("#ffffffff"))
 	highlight = highlight.Width(40)
 
 	var actuators string
