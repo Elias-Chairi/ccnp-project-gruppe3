@@ -162,8 +162,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case actuatorResponseMsg:
-    	delete(m.pendingActuator, msg.Index)
-    	return m, nil
+		delete(m.pendingActuator, msg.Index)
+		return m, nil
  	
 
 	case setNodes:
