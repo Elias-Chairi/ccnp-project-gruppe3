@@ -322,15 +322,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// BOOL actuator
 					case bool:
 						act.State = !v
-					// Mark pending and start spinner + fake delay
-					m.pendingActuator[m.cursor] = true
-					return m, tea.Batch(
-						m.spinner.Tick,
-						tea.Tick(time.Second, func(t time.Time) tea.Msg {
-							return actuatorResponseMsg{Index: m.cursor}
-						}),
-					)
-					
+						// Mark pending and start spinner + fake delay
+						m.pendingActuator[m.cursor] = true
+						return m, tea.Batch(
+							m.spinner.Tick,
+							tea.Tick(time.Second, func(t time.Time) tea.Msg {
+								return actuatorResponseMsg{Index: m.cursor}
+							}),
+						)
 
 					case int, int32, int64:
 						// Start editing mode
