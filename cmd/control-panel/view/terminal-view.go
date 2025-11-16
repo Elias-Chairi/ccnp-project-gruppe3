@@ -145,6 +145,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				return m, tea.Batch(
 					inputCmd,
+					m.spinner.Tick,
 					tea.Tick(time.Second, func(t time.Time) tea.Msg {
 						return actuatorResponseMsg{Index: m.editingActuator}
 					}),
@@ -248,45 +249,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}	
 
 		case "backspace":
-			if m.viewState == nodeView {
-				node := &m.nodes[m.selectedNode]
-				if m.cursor < len(node.Actuators) {
-					act := &node.Actuators[m.cursor]
-
-					switch v := act.State.(type) {
-
-					case int:
-						if v <= 10 {
-							if v > 0 {
-								act.State = v - 1
-							}
-						} else {
-							act.State = v - 10
-						}
-
-					case int32:
-						iv := int(v)
-						if iv <= 10 {
-							if iv > 0 {
-								act.State = iv - 1
-							}
-						} else {
-							act.State = iv - 10
-						}
-
-					case int64:
-						iv := int(v)
-						if iv <= 10 {
-							if iv > 0 {
-								act.State = iv - 1
-							}
-						} else {
-							act.State = iv - 10
-						}
-					}
-				}
+			if m.isEditingNumber {
+				m.input, _ = m.input.Update(msg)
 				return m, nil
-			}	
+			}
+
+				
 
 		case "enter", " ":
 			switch m.viewState {
