@@ -401,9 +401,9 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 	s += "\n-----------------------------\n"
 
 	var menuHighlight = lipgloss.NewStyle().
-    Bold(true).
-    Background(lipgloss.Color("#000ed6ff")).
-    Foreground(lipgloss.Color("#ffffffff"))
+		Bold(true).
+		Background(lipgloss.Color("#000ed6ff")).
+		Foreground(lipgloss.Color("#ffffffff"))
 	menuHighlight = menuHighlight.Width(40)
 	
 
