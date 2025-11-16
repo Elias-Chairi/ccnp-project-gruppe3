@@ -244,7 +244,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			case nodeView:
-				return m, nil // right stops working entirely
+				return m, nil // Disable right key in node view to prevent navigation beyond leaf view
 			}	
 
 		case "backspace":
