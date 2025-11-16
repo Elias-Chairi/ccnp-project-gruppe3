@@ -332,17 +332,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					)
 					
 
-                    case int, int32, int64:
-                        // Start editing mode
-                        m.isEditingNumber = true
-                        m.editingActuator = m.cursor
+					case int, int32, int64:
+						// Start editing mode
+						m.isEditingNumber = true
+						m.editingActuator = m.cursor
 
-                        m.input = textinput.New()
-                        m.input.Placeholder = "Enter number"
-                        m.input.SetValue(fmt.Sprintf("%v", act.State))
-                        m.input.Focus()
+						m.input = textinput.New()
+						m.input.Placeholder = "Enter number"
+						m.input.SetValue(fmt.Sprintf("%v", act.State))
+						m.input.Focus()
 
-                        return m, textinput.Blink
+						return m, textinput.Blink
 					}
 				}
 			}
