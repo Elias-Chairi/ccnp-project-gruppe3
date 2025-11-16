@@ -372,7 +372,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						m.inputFields[m.cursor] = ti
 						m.editingActuators[m.cursor] = true
-						return m, textinput.Blink
+						return m, tea.Batch(textinput.Blink, m.spinner.Tick)
 
 					}
 				}
