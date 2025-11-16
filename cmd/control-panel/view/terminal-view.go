@@ -189,6 +189,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "escape":
 				delete(m.editingActuators, idx)
 				delete(m.inputFields, idx)
+
+			case "ctrl+c":
+				return m, tea.Quit
 			}
 		}
 	}
