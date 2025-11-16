@@ -101,16 +101,16 @@ func initialModel() tea.Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	return model{
-		viewState:    	 mainMenu,
-		message:      	 "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
-		choices:      	 []string{"Manage Greenhouses", "Exit"},
-		nodes:        	 nil,
-		stack:        	 &util.Stack[model]{},
+		viewState:       mainMenu,
+		message:         "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
+		choices:         []string{"Manage Greenhouses", "Exit"},
+		nodes:           nil,
+		stack:           &util.Stack[model]{},
 		spinner:         sp,
 		pendingActuator: map[int]bool{},
-		selectedNode: 	 0,
-		loadingmsg:   	 "Loading Nodes",
-		err:          	 nil,
+		selectedNode:    0,
+		loadingmsg:      "Loading Nodes",
+		err:             nil,
 	}
 }
 
