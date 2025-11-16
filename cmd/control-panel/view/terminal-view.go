@@ -30,30 +30,34 @@ func (t *TerminalView) Start() {
 	}
 }
 
-type setNodes []entity.Node
+type setNodes struct {
+	nodes []entity.Node
+}
 
 // SetInitialNodes sets the initial list of nodes to be displayed in the terminal after registration.
 //
 // Panics if the tea program is not started.
 func (t *TerminalView) SetInitialNodes(nodes []entity.Node) {
 	t.nodes = nodes
-	t.teaProgram.Send(setNodes(nodes))
+	t.teaProgram.Send(setNodes{nodes: nodes})
 }
 
-type setErr error
+type setErr struct {
+	err error
+}
 
 // FailedToConnectToServer notifies the terminal view of a failed connection attempt to the server.
 //
 // Panics if the tea program is not started.
 func (t *TerminalView) FailedToConnectToServer(IP net.IP) {
-	t.teaProgram.Send(setErr(fmt.Errorf("failed to connect to server with IP %v", IP.String())))
+	t.teaProgram.Send(setErr{err: fmt.Errorf("failed to connect to server with IP %v", IP.String())})
 }
 
 // FailedToRegisterToServer notifies the terminal view of a failed registration attempt to the server.
 //
 // Panics if the tea program is not started.
 func (t *TerminalView) FailedToRegisterToServer(IP net.IP) {
-	t.teaProgram.Send(setErr(fmt.Errorf("failed to register to server with IP %v", IP.String())))
+	t.teaProgram.Send(setErr{err: fmt.Errorf("failed to register to server with IP %v", IP.String())})
 }
 
 type setLoadingMessage string
@@ -70,9 +74,9 @@ func (t *TerminalView) EndLoading() {
 type viewState int
 
 const (
-	mainMenu viewState = iota
-	greenhouseList
-	nodeView
+	mainMenuView viewState = iota
+	nodeListView
+	nodeInfoView
 )
 
 type model struct {
@@ -105,7 +109,7 @@ func initialModel() tea.Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	return model{
-		viewState:       mainMenu,
+		viewState:       mainMenuView,
 		message:         "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
 		choices:         []string{"Manage Greenhouses", "Exit"},
 		nodes:           nil,
@@ -138,6 +142,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch key.String() {
 			case "enter":
+				defer func() {
+					m.isEditingNumber = false
+				}()
 
 				raw := m.input.Value()
 				var num int
@@ -147,13 +154,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
 						// Invalid input → escape editing mode
-						m.isEditingNumber = false
 						return m, nil
 					}
 				}
 
 				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
-				m.isEditingNumber = false
 
 				// Start spinner wait
 				m.pendingActuator[m.editingActuator] = true
@@ -169,6 +174,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "escape":
 				m.isEditingNumber = false
 				return m, nil
+
+			case "ctrl+c":
+				return m, tea.Quit
 			}
 		}
 		return m, inputCmd
@@ -182,10 +190,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case setNodes:
-		m.nodes = ([]entity.Node)(msg)
+		m.nodes = msg.nodes
 
 	case setErr:
-		m.err = error(msg)
+		m.err = msg.err
 
 	case setLoadingMessage:
 		m.loadingmsg = string(msg)
@@ -216,7 +224,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "s", "j":
 			limit := 0
 			switch m.viewState {
-			case nodeView:
+			case nodeInfoView:
 				if m.selectedNode < len(m.nodes) {
 					limit = len(m.nodes[m.selectedNode].Actuators)
 				}
@@ -228,10 +236,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "left", "a", "h":
-			if m.viewState == nodeView && m.isActuatorLocked(m.cursor) {
+			if m.viewState == nodeInfoView && m.isActuatorLocked(m.cursor) {
 				return m, nil // cannot go back while this actuator is waiting
 			}
-			if m.viewState != mainMenu {
+			if m.viewState != mainMenuView {
 				nm, _ := m.stack.Pop()
 				m = *nm
 			}
@@ -239,11 +247,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right", "d", "l":
 			switch m.viewState {
 
-			case mainMenu:
+			case mainMenuView:
 				// same behavior as enter
 				if m.cursor == 0 {
 					m.stack.Push(m)
-					m.viewState = greenhouseList
+					m.viewState = nodeListView
 					m.choices = make([]string, len(m.nodes))
 					for i := range m.nodes {
 						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
@@ -253,15 +261,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Quit
 				}
 
-			case greenhouseList:
+			case nodeListView:
 				if m.cursor < len(m.nodes) {
 					m.stack.Push(m)
 					m.selectedNode = m.cursor
-					m.viewState = nodeView
+					m.viewState = nodeInfoView
 					m.cursor = 0
 				}
 
-			case nodeView:
+			case nodeInfoView:
 				return m, nil // Disable right key in node view to prevent navigation beyond leaf view
 			}
 
@@ -274,10 +282,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", " ":
 			switch m.viewState {
 
-			case mainMenu:
+			case mainMenuView:
 				if m.cursor == 0 {
 					m.stack.Push(m)
-					m.viewState = greenhouseList
+					m.viewState = nodeListView
 					m.choices = make([]string, len(m.nodes))
 					for i := range m.nodes {
 						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
@@ -287,15 +295,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Quit
 				}
 
-			case greenhouseList:
+			case nodeListView:
 				if m.cursor < len(m.nodes) {
 					m.stack.Push(m)
 					m.selectedNode = m.cursor
-					m.viewState = nodeView
+					m.viewState = nodeInfoView
 					m.cursor = 0
 				}
 
-			case nodeView:
+			case nodeInfoView:
 				node := &m.nodes[m.selectedNode]
 				if m.cursor < len(node.Actuators) {
 					// Block interaction if this actuator is waiting for response
@@ -351,11 +359,11 @@ func (m model) View() string {
 
 	switch m.viewState {
 
-	case mainMenu:
+	case mainMenuView:
 		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
-	case greenhouseList:
+	case nodeListView:
 		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
-	case nodeView:
+	case nodeInfoView:
 		return renderNodeView(m)
 	default:
 		return "Unknown state"
