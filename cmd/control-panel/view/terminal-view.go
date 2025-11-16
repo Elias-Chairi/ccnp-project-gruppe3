@@ -142,10 +142,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch key.String() {
 			case "enter":
-				defer func() {
-					m.isEditingNumber = false
-				}()
-
 				raw := m.input.Value()
 				var num int
 
@@ -154,11 +150,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
 						// Invalid input → escape editing mode
+						m.isEditingNumber = false
 						return m, nil
 					}
 				}
 
 				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
+				m.isEditingNumber = false
 
 				// Start spinner wait
 				m.pendingActuator[m.editingActuator] = true
