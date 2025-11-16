@@ -76,26 +76,25 @@ const (
 )
 
 type model struct {
-	viewState    viewState
-	message      string
-	choices      []string
-	cursor       int
-	nodes        []entity.Node
-	selectedNode int
-	stack        *util.Stack[model] // used to manage navigation history
-	err          error
-	loadingmsg string
+	viewState       viewState
+	message         string
+	choices         []string
+	cursor          int
+	nodes           []entity.Node
+	selectedNode    int
+	stack           *util.Stack[model] // used to manage navigation history
+	err             error
+	loadingmsg      string
 	editingActuator int
-	input textinput.Model
+	input           textinput.Model
 	isEditingNumber bool
-	spinner spinner.Model
+	spinner         spinner.Model
 	pendingActuator map[int]bool
 }
 
 func (m *model) isActuatorLocked(index int) bool {
-    return m.pendingActuator[index]
+	return m.pendingActuator[index]
 }
-
 
 type actuatorResponseMsg struct {
 	Index int
@@ -131,7 +130,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-
 	if m.isEditingNumber {
 		var inputCmd tea.Cmd
 		m.input, inputCmd = m.input.Update(msg)
@@ -144,7 +142,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Sscanf(m.input.Value(), "%d", &num)
 				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
 				m.isEditingNumber = false
-				
+
 				// Start spinner wait
 				m.pendingActuator[m.editingActuator] = true
 
@@ -170,7 +168,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actuatorResponseMsg:
 		delete(m.pendingActuator, msg.Index)
 		return m, nil
- 	
 
 	case setNodes:
 		m.nodes = ([]entity.Node)(msg)
@@ -220,7 +217,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "left", "a", "h":
 			if m.viewState == nodeView && m.isActuatorLocked(m.cursor) {
-        		return m, nil // cannot go back while this actuator is waiting
+				return m, nil // cannot go back while this actuator is waiting
 			}
 			if m.viewState != mainMenu {
 				nm, _ := m.stack.Pop()
@@ -228,7 +225,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "right", "d", "l":
-    		switch m.viewState {
+			switch m.viewState {
 
 			case mainMenu:
 				// same behavior as enter
@@ -254,15 +251,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case nodeView:
 				return m, nil // Disable right key in node view to prevent navigation beyond leaf view
-			}	
+			}
 
 		case "backspace":
 			if m.isEditingNumber {
 				m.input, _ = m.input.Update(msg)
 				return m, nil
 			}
-
-				
 
 		case "enter", " ":
 			switch m.viewState {
@@ -291,10 +286,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case nodeView:
 				node := &m.nodes[m.selectedNode]
 				if m.cursor < len(node.Actuators) {
-				// Block interaction if this actuator is waiting for response
-				if m.isActuatorLocked(m.cursor) {
-					return m, nil
-				}
+					// Block interaction if this actuator is waiting for response
+					if m.isActuatorLocked(m.cursor) {
+						return m, nil
+					}
 
 					act := &node.Actuators[m.cursor]
 
@@ -375,7 +370,6 @@ func renderError(err error) string {
 	return s
 }
 
-
 // Renders a menu with the given title, choices, cursor position, and message.
 func renderMenu(title string, choices []string, cursor int, message string) string {
 	s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#00aa55")).Render(title)
@@ -386,7 +380,6 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 		Background(lipgloss.Color("#000ed6ff")).
 		Foreground(lipgloss.Color("#ffffffff"))
 	menuHighlight = menuHighlight.Width(40)
-	
 
 	for i, choice := range choices {
 
@@ -438,7 +431,6 @@ func renderNodeView(m model) string {
 	// pad the sensors column so both columns line up
 	sensorsStyle := lipgloss.NewStyle().Width(40)
 	sensors = sensorsStyle.Render(sensors)
-
 
 	//  RIGHT COLUMN: ACTUATORS
 
@@ -494,7 +486,6 @@ func renderNodeView(m model) string {
 
 		line := fmt.Sprintf("  %-12s : %s%s", act.Type, value, spinnerStr)
 
-
 		// actuator-specific colors
 		styled := style.Render(line)
 
@@ -516,9 +507,8 @@ func renderNodeView(m model) string {
 		actuators,
 	)
 
-
 	footer := "\n----------------------------------------------\n" +
-			" ↑/↓ navigate actuators | enter/space toggle | ← back | q quit\n"
+		" ↑/↓ navigate actuators | enter/space toggle | ← back | q quit\n"
 
 	if m.message != "" {
 		footer += "\n" + m.message + "\n"
@@ -526,5 +516,3 @@ func renderNodeView(m model) string {
 
 	return header + combined + footer
 }
-
-
