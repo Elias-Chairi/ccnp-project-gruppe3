@@ -80,20 +80,19 @@ const (
 )
 
 type model struct {
-	viewState       viewState
-	message         string
-	choices         []string
-	cursor          int
-	nodes           []entity.Node
-	selectedNode    int
-	stack           *util.Stack[model] // used to manage navigation history
-	err             error
-	loadingmsg      string
-	editingActuator int
-	input           textinput.Model
-	isEditingNumber bool
-	spinner         spinner.Model
-	pendingActuator map[int]bool
+	viewState        viewState
+	message          string
+	choices          []string
+	cursor           int
+	nodes            []entity.Node
+	selectedNode     int
+	stack            *util.Stack[model] // used to manage navigation history
+	err              error
+	loadingmsg       string
+	editingActuators map[int]bool
+	inputFields      map[int]textinput.Model
+	spinner          spinner.Model
+	pendingActuator  map[int]bool
 }
 
 func (m *model) isActuatorLocked(index int) bool {
@@ -109,16 +108,18 @@ func initialModel() tea.Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	return model{
-		viewState:       mainMenuView,
-		message:         "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
-		choices:         []string{"Manage Greenhouses", "Exit"},
-		nodes:           nil,
-		stack:           &util.Stack[model]{},
-		spinner:         sp,
-		pendingActuator: map[int]bool{},
-		selectedNode:    0,
-		loadingmsg:      "Loading Nodes",
-		err:             nil,
+		viewState:        mainMenuView,
+		message:          "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
+		choices:          []string{"Manage Greenhouses", "Exit"},
+		nodes:            nil,
+		stack:            &util.Stack[model]{},
+		spinner:          sp,
+		pendingActuator:  map[int]bool{},
+		editingActuators: map[int]bool{},
+		inputFields:      map[int]textinput.Model{},
+		selectedNode:     0,
+		loadingmsg:       "Loading Nodes",
+		err:              nil,
 	}
 }
 
@@ -127,57 +128,77 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var spinnerCmd tea.Cmd
+	m.spinner, spinnerCmd = m.spinner.Update(msg)
 
-	var cmd tea.Cmd
-	m.spinner, cmd = m.spinner.Update(msg)
-	if cmd != nil {
-		return m, cmd
-	}
+	// Handle editing for ANY actuator
+	var editCmds []tea.Cmd
 
-	if m.isEditingNumber {
-		var inputCmd tea.Cmd
-		m.input, inputCmd = m.input.Update(msg)
+	for idx := range m.editingActuators {
 
-		switch key := msg.(type) {
-		case tea.KeyMsg:
+		var cmd tea.Cmd
+		m.inputFields[idx], cmd = m.inputFields[idx].Update(msg)
+		if cmd != nil {
+			editCmds = append(editCmds, cmd)
+		}
+
+		if key, ok := msg.(tea.KeyMsg); ok {
 			switch key.String() {
-			case "enter":
-				raw := m.input.Value()
-				var num int
 
-				if raw == "" {
-					num = 0
-				} else {
+			case "enter":
+				raw := m.inputFields[idx].Value()
+				original := m.nodes[m.selectedNode].Actuators[idx].State
+
+				switch original.(type) {
+				case int, int32, int64:
+					var num int
 					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
-						// Invalid input → escape editing mode
-						m.isEditingNumber = false
-						return m, nil
+						// Invalid input, exit editing mode
+						delete(m.editingActuators, idx)
+						delete(m.inputFields, idx)
+						break
 					}
+					m.nodes[m.selectedNode].Actuators[idx].State = num
+
+				case float32, float64:
+					var num float64
+					if _, err := fmt.Sscanf(raw, "%f", &num); err != nil {
+						// Invalid input, exit editing mode
+						delete(m.editingActuators, idx)
+						delete(m.inputFields, idx)
+						break
+					}
+					if num < 0 {
+						num = 0
+					}
+					if num > 1 {
+						num = 1
+					}
+					m.nodes[m.selectedNode].Actuators[idx].State = num
 				}
 
-				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
-				m.isEditingNumber = false
+				delete(m.editingActuators, idx)
+				delete(m.inputFields, idx)
 
-				// Start spinner wait
-				m.pendingActuator[m.editingActuator] = true
+				m.pendingActuator[idx] = true
 
-				return m, tea.Batch(
-					inputCmd,
-					m.spinner.Tick,
-					tea.Tick(time.Second, func(t time.Time) tea.Msg {
-						return actuatorResponseMsg{Index: m.editingActuator}
-					}),
-				)
+				editCmds = append(editCmds, tea.Tick(time.Second, func(t time.Time) tea.Msg {
+					return actuatorResponseMsg{Index: idx}
+				}))
 
 			case "esc", "escape":
-				m.isEditingNumber = false
-				return m, nil
+				delete(m.editingActuators, idx)
+				delete(m.inputFields, idx)
 
 			case "ctrl+c":
 				return m, tea.Quit
 			}
 		}
-		return m, inputCmd
+	}
+
+	// Return all collected edit commands AND spinner tick
+	if len(editCmds) > 0 {
+		return m, tea.Batch(editCmds...)
 	}
 
 	//main switchmsg
@@ -185,7 +206,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case actuatorResponseMsg:
 		delete(m.pendingActuator, msg.Index)
-		return m, nil
+		return m, m.spinner.Tick
 
 	case setNodes:
 		m.nodes = msg.nodes
@@ -207,6 +228,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.err != nil || m.loadingmsg != "" {
 			break
+		}
+
+		// Block navigation and selection while editing ANY actuator
+		if len(m.editingActuators) > 0 {
+			return m, nil
 		}
 
 		// Cool, what was the actual key pressed?
@@ -272,10 +298,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "backspace":
-			if m.isEditingNumber {
-				m.input, _ = m.input.Update(msg)
+			if m.isActuatorLocked(m.cursor) {
 				return m, nil
 			}
+			return m, nil
 
 		case "enter", " ":
 			switch m.viewState {
@@ -318,31 +344,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						act.State = !v
 						// Mark pending and start spinner + fake delay
 						m.pendingActuator[m.cursor] = true
+						idx := m.cursor
 						return m, tea.Batch(
 							m.spinner.Tick,
 							tea.Tick(time.Second, func(t time.Time) tea.Msg {
-								return actuatorResponseMsg{Index: m.cursor}
+								return actuatorResponseMsg{Index: idx}
 							}),
 						)
 
 					case int, int32, int64:
 						// Start editing mode
-						m.isEditingNumber = true
-						m.editingActuator = m.cursor
+						ti := textinput.New()
+						ti.Placeholder = "Enter number"
+						ti.SetValue(fmt.Sprintf("%v", act.State))
+						ti.Focus()
 
-						m.input = textinput.New()
-						m.input.Placeholder = "Enter number"
-						m.input.SetValue(fmt.Sprintf("%v", act.State))
-						m.input.Focus()
-
+						m.inputFields[m.cursor] = ti
+						m.editingActuators[m.cursor] = true
 						return m, textinput.Blink
+
+					case float32, float64:
+						// Start editing mode
+						ti := textinput.New()
+						ti.Placeholder = "Enter value (0–1)"
+						ti.SetValue(fmt.Sprintf("%v", v))
+						ti.Focus()
+
+						m.inputFields[m.cursor] = ti
+						m.editingActuators[m.cursor] = true
+						return m, tea.Batch(textinput.Blink, m.spinner.Tick)
+
 					}
 				}
 			}
 		}
 	}
 
-	return m, nil
+	return m, tea.Batch(spinnerCmd)
 }
 
 // This function is responsible for rendering the different views based on the current state.
@@ -470,6 +508,23 @@ func renderNodeView(m model) string {
 
 		switch v := act.State.(type) {
 
+		case float32, float64:
+			var f float64
+			switch x := v.(type) {
+			case float32:
+				f = float64(x)
+			case float64:
+				f = x
+			}
+
+			// While editing, show text input
+			if m.editingActuators[i] {
+				value = m.inputFields[i].View()
+			} else {
+				percent := int(f * 100)
+				value = fmt.Sprintf("%d %%", percent)
+			}
+
 		case bool:
 			if v {
 				value = "ON"
@@ -483,8 +538,8 @@ func renderNodeView(m model) string {
 			num := fmt.Sprintf("%v", v)
 
 			// If editing, show the text input
-			if m.isEditingNumber && i == m.editingActuator {
-				value = m.input.View()
+			if m.editingActuators[i] {
+				value = m.inputFields[i].View()
 			} else if act.Unit != "" {
 				value = num + " " + act.Unit
 			} else {

@@ -97,7 +97,7 @@ func testNodes() []entity.Node {
 		Actuators: []entity.Actuator[any]{
 			{ID: 1, Type: "Heater", Unit: "", State: "OFF"},
 			{ID: 2, Type: "Fan", Unit: "RPM", State: 300},
-			{ID: 3, Type: "Sprinkler", Unit: "", State: "ON"},
+			{ID: 3, Type: "Window", Unit: "%open", State: 0.5},
 		},
 	}
 
