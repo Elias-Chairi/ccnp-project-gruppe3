@@ -1,11 +1,11 @@
-package util_test
+package general_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 )
 
 // -------------------------------------- Positive tests --------------------------------------

@@ -22,7 +22,7 @@ type tcpService struct {
 	Port    int
 	Timeout time.Duration
 
-	pendingReq *PendingRequests
+	pendingReq *utilNet.PendingRequests
 	nodeReg    *NodeRegistry
 	ctrlPanReg *ControlPanelRegistry
 }
@@ -48,7 +48,7 @@ func (t *tcpService) Start() {
 
 	t.nodeReg = NewNodeRegistry()
 	t.ctrlPanReg = &ControlPanelRegistry{}
-	t.pendingReq = NewPendingRequests()
+	t.pendingReq = utilNet.NewPendingRequests()
 
 	log.Printf("Listening on: %s\n", listener.Addr())
 

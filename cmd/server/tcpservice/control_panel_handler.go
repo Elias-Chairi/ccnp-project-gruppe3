@@ -11,7 +11,7 @@ import (
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
-var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
+var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, senderReqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.COMMAND): // received command from control panel, forward to node
 		msg, err := messages.DecodeCommandMessage(tlv, true)
@@ -21,10 +21,12 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 			})
 			return
 		}
+		msg.NodeSelector = nil // each node don't need to know about the node selector
 
-		reqID := t.pendingReq.Add(Request{
+		reqID := t.pendingReq.Add(utilNet.Request{
 			Msg:    msg,
 			Sender: conn,
+			ReqID:  *senderReqID,
 		})
 
 		switch msg.NodeSelector.Type {

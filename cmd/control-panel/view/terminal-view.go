@@ -6,8 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	textinput "github.com/charmbracelet/bubbles/textinput"
@@ -17,13 +18,14 @@ import (
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	nodes      []entity.Node
-	teaProgram *tea.Program
+	nodes       []entity.Node
+	teaProgram  *tea.Program
+	ConnHandler *connectionhandler.ConnectionHandler
 }
 
 // Start launches the terminal-based user interface.
 func (t *TerminalView) Start() {
-	t.teaProgram = tea.NewProgram(initialModel())
+	t.teaProgram = tea.NewProgram(initialModel(t.ConnHandler))
 	if _, err := t.teaProgram.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
@@ -94,6 +96,7 @@ type model struct {
 	isEditingNumber bool
 	spinner         spinner.Model
 	pendingActuator map[int]bool
+	connHandler     *connectionhandler.ConnectionHandler
 }
 
 func (m *model) isActuatorLocked(index int) bool {
@@ -104,7 +107,7 @@ type actuatorResponseMsg struct {
 	Index int
 }
 
-func initialModel() tea.Model {
+func initialModel(connHandler *connectionhandler.ConnectionHandler) tea.Model {
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
@@ -119,6 +122,7 @@ func initialModel() tea.Model {
 		selectedNode:    0,
 		loadingmsg:      "Loading Nodes",
 		err:             nil,
+		connHandler:     connHandler,
 	}
 }
 
@@ -315,7 +319,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// BOOL actuator
 					case bool:
-						act.State = !v
+						// Send command to toggle actuator state
+						m.connHandler.SendCommand(m.nodes[m.selectedNode].ID, act.ID, !v)
+						// act.State = !v
+
 						// Mark pending and start spinner + fake delay
 						m.pendingActuator[m.cursor] = true
 						return m, tea.Batch(

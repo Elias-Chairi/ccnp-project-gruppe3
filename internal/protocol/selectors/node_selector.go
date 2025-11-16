@@ -14,8 +14,8 @@ type NodeSelector struct {
 }
 
 // NewSingleNodeSelector creates a selector for a single node.
-func NewSingleNodeSelector(nodeID uint8) *NodeSelector {
-	return &NodeSelector{
+func NewSingleNodeSelector(nodeID uint8) NodeSelector {
+	return NodeSelector{
 		Type:    constants.SINGLE_NODE,
 		NodeIDs: []uint8{nodeID},
 	}

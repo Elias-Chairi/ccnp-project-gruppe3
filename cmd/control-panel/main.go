@@ -2,17 +2,13 @@ package main
 
 import (
 	"flag"
-
-	// "fmt"
 	"log"
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
-
-	// "github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/control-panel/view"
-	// "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 func main() {
@@ -23,7 +19,7 @@ func main() {
 	if len(ipList) == 0 {
 		log.Println("Searching for server... (search duration: 3s)")
 		var err error
-		ipList, err = util.FindServer(3 * time.Second)
+		ipList, err = utilNet.FindServer(3 * time.Second)
 		if err != nil {
 			log.Fatalf("Error searching for servers: %v\n", err)
 		}
@@ -34,8 +30,9 @@ func main() {
 
 	t := &view.TerminalView{}
 
-	c := &connectionhandler.ConnectionHandler{}
-	c.ServerIPs = ipList
+	c := &connectionhandler.ConnectionHandler{
+		ServerIPs: ipList,
+	}
 
 	go func() {
 		time.Sleep(time.Second * 1) // simulate loading time

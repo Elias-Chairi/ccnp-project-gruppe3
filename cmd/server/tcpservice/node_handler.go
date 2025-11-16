@@ -9,7 +9,7 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
@@ -37,7 +37,7 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 			switch reqMsg.NodeSelector.Type {
 			case constants.SINGLE_NODE:
 				// acknowledge to original sender
-				_ = writeMessage(req.Sender, nil, messages.AckSuccessMessage())
+				_ = writeMessage(req.Sender, &req.ReqID, messages.AckSuccessMessage())
 
 				// forward actuator update to all other control panels
 				for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {

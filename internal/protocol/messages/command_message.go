@@ -21,17 +21,8 @@ type CommandMessage struct {
 	ActuatorState    any
 }
 
-// NewCommandMessage creates a new COMMAND message without a node selector.
-func NewCommandMessage(actuatorSelector selectors.ActuatorSelector, actuatorState any) *CommandMessage {
-	return &CommandMessage{
-		NodeSelector:     nil,
-		ActuatorSelector: actuatorSelector,
-		ActuatorState:    actuatorState,
-	}
-}
-
 // NewCommandMessageWithNode creates a new COMMAND message with a node selector.
-func NewCommandMessageWithNode(nodeSelector selectors.NodeSelector, actuatorSelector selectors.ActuatorSelector, actuatorState any) *CommandMessage {
+func NewCommandMessage(nodeSelector selectors.NodeSelector, actuatorSelector selectors.ActuatorSelector, actuatorState any) *CommandMessage {
 	return &CommandMessage{
 		NodeSelector:     &nodeSelector,
 		ActuatorSelector: actuatorSelector,

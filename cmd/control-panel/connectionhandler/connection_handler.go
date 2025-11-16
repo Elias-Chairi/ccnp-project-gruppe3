@@ -8,12 +8,15 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 // ConnectionHandler manages the connection to the server.
 type ConnectionHandler struct {
-	conn      net.Conn
-	ServerIPs []net.IP
+	conn       net.Conn
+	ServerIPs  []net.IP
+	pendingReq *utilNet.PendingRequests
 }
 
 // Connect establishes a TCP connection to the server.
@@ -79,4 +82,25 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 	}
 
 	return &nodes, nil
+}
+
+func (c *ConnectionHandler) SendCommand(nodeID uint8, actuatorID uint8, state any) error {
+	nodeSel := selectors.NewSingleNodeSelector(nodeID)
+	actuatorSel := selectors.NewSingleActuatorSelector(actuatorID)
+	msg := messages.NewCommandMessage(nodeSel, actuatorSel, state)
+
+	tlv, err := msg.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode command message: %w", err)
+	}
+
+	reqID := c.pendingReq.Add(utilNet.Request{Msg: msg})
+
+	_, err = c.conn.Write(tlv.EncodeWithRequestID(reqID))
+	if err != nil {
+		return fmt.Errorf("failed to write to conn: %w", err)
+	}
+
+	return nil
+
 }

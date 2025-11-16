@@ -6,13 +6,13 @@ import (
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 // StartUDPService starts the UDP service that listens for discovery messages and responds with ACKs.
 func StartUDPService() {
 	// Create a UDP socket bound to the multicast address
-	conn, err := net.ListenMulticastUDP("udp4", nil, &util.MULTICAST_ADDR)
+	conn, err := net.ListenMulticastUDP("udp4", nil, &utilNet.MULTICAST_ADDR)
 	if err != nil {
 		log.Fatalf("Error listening on multicast udp: %v", err)
 	}
@@ -20,7 +20,7 @@ func StartUDPService() {
 		_ = conn.Close()
 	}()
 
-	log.Printf("Listening for multicast messages on %s\n", util.MULTICAST_ADDR.String())
+	log.Printf("Listening for multicast messages on %s\n", utilNet.MULTICAST_ADDR.String())
 
 	// Continuously read from the UDP socket
 	for {
