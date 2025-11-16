@@ -92,6 +92,11 @@ type model struct {
 	pendingActuator map[int]bool
 }
 
+func (m *model) isActuatorLocked(index int) bool {
+    return m.pendingActuator[index]
+}
+
+
 type actuatorResponseMsg struct {
 	Index int
 }
@@ -214,6 +219,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "left", "a", "h":
+			if m.viewState == nodeView && m.isActuatorLocked(m.cursor) {
+        		return m, nil // cannot go back while this actuator is waiting
+			}
 			if m.viewState != mainMenu {
 				nm, _ := m.stack.Pop()
 				m = *nm
@@ -283,6 +291,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case nodeView:
 				node := &m.nodes[m.selectedNode]
 				if m.cursor < len(node.Actuators) {
+				// Block interaction if this actuator is waiting for response
+				if m.isActuatorLocked(m.cursor) {
+					return m, nil
+				}
+
 					act := &node.Actuators[m.cursor]
 
 					switch v := act.State.(type) {
