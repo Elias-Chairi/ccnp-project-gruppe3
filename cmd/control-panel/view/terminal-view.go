@@ -142,23 +142,52 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch key.String() {
 			case "enter":
-				raw := m.input.Value()
-				var num int
 
-				if raw == "" {
-					num = 0
-				} else {
-					if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
-						// Invalid input → escape editing mode
-						m.isEditingNumber = false
-						return m, nil
+				raw := m.input.Value()
+				original := m.nodes[m.selectedNode].Actuators[m.editingActuator].State //original value
+
+				switch original.(type) {
+
+				case int, int32, int64:
+					var num int
+					if raw == "" {
+						num = 0
+					} else {
+						if _, err := fmt.Sscanf(raw, "%d", &num); err != nil {
+							m.isEditingNumber = false
+							return m, nil
+						}
 					}
+
+					// Save as int 
+					m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
+
+				case float32, float64:
+					var num float64
+					if raw == "" {
+						num = 0
+					} else {
+						if _, err := fmt.Sscanf(raw, "%f", &num); err != nil {
+							m.isEditingNumber = false
+							return m, nil
+						}
+					}
+
+					// Clamp to [0,1]
+					if num < 0 {
+						num = 0
+					}
+					if num > 1 {
+						num = 1
+					}
+
+					// Save as float64
+					m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
 				}
 
-				m.nodes[m.selectedNode].Actuators[m.editingActuator].State = num
 				m.isEditingNumber = false
 
-				// Start spinner wait
+				// Spinner wait
 				m.pendingActuator[m.editingActuator] = true
 
 				return m, tea.Batch(
@@ -168,6 +197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return actuatorResponseMsg{Index: m.editingActuator}
 					}),
 				)
+
 
 			case "esc", "escape":
 				m.isEditingNumber = false
@@ -336,6 +366,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.input.Focus()
 
 						return m, textinput.Blink
+
+					case float32, float64:
+						// Start editing mode
+						m.isEditingNumber = true
+						m.editingActuator = m.cursor
+
+						m.input = textinput.New()
+						m.input.Placeholder = "Enter value (0–1)"
+						m.input.SetValue(fmt.Sprintf("%v", v))
+						m.input.Focus()
+
+						return m, textinput.Blink
+
 					}
 				}
 			}
@@ -469,6 +512,23 @@ func renderNodeView(m model) string {
 		)
 
 		switch v := act.State.(type) {
+
+		case float32, float64:
+			var f float64
+			switch x := v.(type) {
+			case float32:
+				f = float64(x)
+			case float64:
+				f = x
+			}
+
+			// While editing, show text input
+			if m.isEditingNumber && i == m.editingActuator {
+				value = m.input.View()
+			} else {
+				percent := int(f * 100)
+				value = fmt.Sprintf("%d %%", percent)
+			}
 
 		case bool:
 			if v {
