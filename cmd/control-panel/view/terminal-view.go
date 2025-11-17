@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	textinput "github.com/charmbracelet/bubbles/textinput"
@@ -15,15 +14,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type Controller interface {
+	SendCommand(nodeID uint8, actuatorID uint8, state any) error
+}
+
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
 	nodes      []entity.Node
 	teaProgram *tea.Program
+	Controller Controller
 }
 
 // Start launches the terminal-based user interface.
 func (t *TerminalView) Start() {
-	t.teaProgram = tea.NewProgram(initialModel())
+	t.teaProgram = tea.NewProgram(initialModel(t.Controller))
 	if _, err := t.teaProgram.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
@@ -69,6 +73,35 @@ func (t *TerminalView) EndLoading() {
 	t.teaProgram.Send(setLoadingMessage(""))
 }
 
+func (t *TerminalView) SensorUpdate(nodeID uint8, sensorID uint8, value any) {
+	t.teaProgram.Send(sensorUpdateMsg{
+		nodeID:   nodeID,
+		sensorID: sensorID,
+		value:    value,
+	})
+}
+
+func (t *TerminalView) ActuatorUpdate(nodeID uint8, actuatorID uint8, state any) {
+	t.teaProgram.Send(actuatorUpdateMsg{
+		nodeID:     nodeID,
+		actuatorID: actuatorID,
+		state:      state,
+	})
+}
+
+func (t *TerminalView) ActuatorCommandResponse(nodeID uint8, actuatorID uint8, state any, err error) {
+	if err != nil {
+		return
+	}
+	t.teaProgram.Send(actuatorResponseMsg{
+		actuatorUpdateMsg: actuatorUpdateMsg{
+			nodeID:     nodeID,
+			actuatorID: actuatorID,
+			state:      state,
+		},
+	})
+}
+
 // --------------------- Bubble Tea Model ---------------------
 
 type viewState int
@@ -93,17 +126,66 @@ type model struct {
 	inputFields      map[int]textinput.Model
 	spinner          spinner.Model
 	pendingActuator  map[int]bool
+	controller       Controller
 }
 
 func (m *model) isActuatorLocked(index int) bool {
 	return m.pendingActuator[index]
 }
 
-type actuatorResponseMsg struct {
-	Index int
+type sensorUpdateMsg struct {
+	nodeID   uint8
+	sensorID uint8
+	value    any
 }
 
-func initialModel() tea.Model {
+type actuatorUpdateMsg struct {
+	nodeID     uint8
+	actuatorID uint8
+	state      any
+}
+
+type actuatorResponseMsg struct {
+	actuatorUpdateMsg
+}
+
+func (m *model) getNodeByID(id uint8) *entity.Node {
+	for i := range m.nodes {
+		if m.nodes[i].ID == id {
+			return &m.nodes[i]
+		}
+	}
+	return nil
+}
+
+func (m *model) updateSensor(nodeID uint8, sensorID uint8, value any) {
+	node := m.getNodeByID(nodeID)
+	if node == nil {
+		return
+	}
+	for i := range node.Sensors {
+		if node.Sensors[i].ID == sensorID {
+			node.Sensors[i].Value = value
+			break
+		}
+	}
+}
+
+func (m *model) updateActuator(nodeID uint8, actuatorID uint8, state any) int {
+	node := m.getNodeByID(nodeID)
+	if node == nil {
+		return -1
+	}
+	for i := range node.Actuators {
+		if node.Actuators[i].ID == actuatorID {
+			node.Actuators[i].State = state
+			return i
+		}
+	}
+	return -1
+}
+
+func initialModel(controller Controller) tea.Model {
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
@@ -120,6 +202,7 @@ func initialModel() tea.Model {
 		selectedNode:     0,
 		loadingmsg:       "Loading Nodes",
 		err:              nil,
+		controller:       controller,
 	}
 }
 
@@ -149,6 +232,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				raw := m.inputFields[idx].Value()
 				original := m.nodes[m.selectedNode].Actuators[idx].State
 
+				var state any
 				switch original.(type) {
 				case int, int32, int64:
 					var num int
@@ -158,7 +242,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						delete(m.inputFields, idx)
 						break
 					}
-					m.nodes[m.selectedNode].Actuators[idx].State = num
+					state = num
 
 				case float32, float64:
 					var num float64
@@ -174,7 +258,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if num > 1 {
 						num = 1
 					}
-					m.nodes[m.selectedNode].Actuators[idx].State = num
+					state = num
 				}
 
 				delete(m.editingActuators, idx)
@@ -182,9 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				m.pendingActuator[idx] = true
 
-				editCmds = append(editCmds, tea.Tick(time.Second, func(t time.Time) tea.Msg {
-					return actuatorResponseMsg{Index: idx}
-				}))
+				_ = m.controller.SendCommand(m.nodes[m.selectedNode].ID, m.nodes[m.selectedNode].Actuators[idx].ID, state)
 
 			case "esc", "escape":
 				delete(m.editingActuators, idx)
@@ -204,8 +286,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//main switchmsg
 	switch msg := msg.(type) {
 
-	case actuatorResponseMsg:
-		delete(m.pendingActuator, msg.Index)
+	case sensorUpdateMsg: // update sensor value
+		m.updateSensor(msg.nodeID, msg.sensorID, msg.value)
+
+	case actuatorUpdateMsg: // update actuator state
+		m.updateActuator(msg.nodeID, msg.actuatorID, msg.state)
+
+	case actuatorResponseMsg: // stop spinner and update actuator state
+		index := m.updateActuator(msg.nodeID, msg.actuatorID, msg.state)
+		if index != -1 {
+			delete(m.pendingActuator, index)
+		}
 		return m, m.spinner.Tick
 
 	case setNodes:
@@ -341,16 +432,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// BOOL actuator
 					case bool:
-						act.State = !v
+						_ = m.controller.SendCommand(m.nodes[m.selectedNode].ID, act.ID, !v)
+
 						// Mark pending and start spinner + fake delay
 						m.pendingActuator[m.cursor] = true
-						idx := m.cursor
-						return m, tea.Batch(
-							m.spinner.Tick,
-							tea.Tick(time.Second, func(t time.Time) tea.Msg {
-								return actuatorResponseMsg{Index: idx}
-							}),
-						)
+						return m, m.spinner.Tick
 
 					case int, int32, int64:
 						// Start editing mode

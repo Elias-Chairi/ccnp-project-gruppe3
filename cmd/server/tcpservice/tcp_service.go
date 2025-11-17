@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
@@ -21,7 +22,7 @@ type tcpService struct {
 	Port    int
 	Timeout time.Duration
 
-	pendingReq *PendingRequests
+	pendingReq *utilNet.PendingRequests
 	nodeReg    *NodeRegistry
 	ctrlPanReg *ControlPanelRegistry
 }
@@ -47,7 +48,7 @@ func (t *tcpService) Start() {
 
 	t.nodeReg = NewNodeRegistry()
 	t.ctrlPanReg = &ControlPanelRegistry{}
-	t.pendingReq = NewPendingRequests()
+	t.pendingReq = utilNet.NewPendingRequests()
 
 	log.Printf("Listening on: %s\n", listener.Addr())
 
@@ -98,12 +99,30 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 
 		// create and store unique node ID
 		id := t.nodeReg.CreateNodeID(conn, msg.Sensors, msg.Actuators)
-		// todo: send ID to node
-		// todo: send new node to control panel(s)
+		// send assigned node ID back to node
+		nodeID, err := encoding.NewTLV(uint8(constants.NODE_ID), []byte{byte(id)})
+		if err != nil {
+			return fmt.Errorf("error creating node ID TLV: %w", err)
+		}
+		err = writeMessage(conn, nil, messages.NewAckMessage(string(nodeID.Encode())))
+		if err != nil {
+			return fmt.Errorf("error sending assigned node ID to node: %w", err)
+		}
+		log.Printf("Node successfully registered. Assigned NodeID = %d\n", id)
+
+		// notify all control panels about new node
+		updateMsg := messages.NewNodeAddedMessage(entity.Node{
+			ID:        id,
+			Sensors:   msg.Sensors,
+			Actuators: msg.Actuators,
+		})
+		t.NotifyAllControlPanels(updateMsg)
 
 		defer func() {
 			t.nodeReg.RemoveNodeID(id)
-			// todo: send delete node to control panel(s)
+			// notify all control panels about node removal
+			removeMsg := messages.NewNodeRemovedMessage(id)
+			t.NotifyAllControlPanels(removeMsg)
 		}()
 		return t.handleConn(conn, handleNode)
 
@@ -125,6 +144,12 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 	}
 }
 
+func (t *tcpService) NotifyAllControlPanels(msg messages.TopLevelMessage) {
+	for _, c := range t.ctrlPanReg.GetAll() {
+		_ = writeMessage(c, nil, msg)
+	}
+}
+
 // messageHandler is a function that handles a single top-level message from a connection.
 type messageHandler func(t *tcpService, safeConn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16)
 
@@ -137,7 +162,7 @@ func (t *tcpService) handleConn(conn *utilNet.SafeConn, handle messageHandler) e
 		if err != nil {
 			if !isConnClosedErr(err) {
 				// send error message before closing connection
-				_ = writeMessage(conn, nil, messages.AckErrorMessage{
+				_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
@@ -159,19 +184,6 @@ func writeMessage(conn *utilNet.SafeConn, reqID *uint16, msg messages.TopLevelMe
 	} else {
 		data = tlv.Encode()
 	}
-
-	// switch tlv.Type() {
-	// case uint8(constants.COMMAND): // writing a command to node, store in pending requests
-	// 	id := t.pendingReq.Add(msg)
-	// 	data = tlv.EncodeWithRequestID(id)
-	// case uint8(constants.ACK_ERROR_REQUESTID): // writing an ack/error with request ID 0 (back to control panel)
-	// 	if reqID == nil {
-	// 		return fmt.Errorf("missing request ID for ACK/ERROR message")
-	// 	}
-	// 	data = tlv.EncodeWithRequestID(*reqID)
-	// default:
-	// 	data = tlv.Encode()
-	// }
 
 	_, err = conn.Write(data)
 	if err != nil {

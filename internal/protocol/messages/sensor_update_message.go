@@ -42,7 +42,7 @@ func (m *sensorUpdateMessage) Type() constants.MessageType {
 }
 
 // Encode encodes the SENSOR_UPDATE message to bytes.
-func (m *sensorUpdateMessage) Encode() ([]byte, error) {
+func (m *sensorUpdateMessage) Encode() (encoding.TLV, error) {
 	var tlvs []encoding.TLV
 
 	// Encode node ID if present
@@ -67,7 +67,7 @@ func (m *sensorUpdateMessage) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SENSOR_UPDATE TLV: %w", err)
 	}
-	return mainTLV.Encode(), nil
+	return mainTLV, nil
 }
 
 // DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV.

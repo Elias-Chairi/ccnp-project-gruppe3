@@ -8,26 +8,26 @@ import (
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/greenhouse"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 func main() {
-	node := entity.Node{
+	node := &entity.Node{
 		ID: 1,
 		Actuators: []entity.Actuator[any]{
-			{ID: 1, Type: "HEATER", State: false},                  // off
-			{ID: 2, Type: "HEATER", Unit: "°C", State: float32(0)}, // 0 °C (no heating) (heater cannot make it colder)
-			{ID: 3, Type: "WINDOW", State: false},                  // closed
-			{ID: 4, Type: "WINDOW", State: float32(0.0)},           // 0% open
-			{ID: 5, Type: "FAN", State: false},                     // off
-			{ID: 6, Type: "FAN", Unit: "RPM", State: int32(0)},     // 0 rpm
-			{ID: 7, Type: "LIGHT", State: false},                   // off
-			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(0)},    // 0 lux
+			{ID: 1, Type: "HEATER", State: false},                        // off
+			{ID: 2, Type: "HEATER", Unit: "°C", State: int32(0)},         // 0 °C (no heating) (heater cannot make it colder)
+			{ID: 4, Type: "WINDOW", Unit: "% open", State: float32(0.0)}, // 0% open
+			{ID: 5, Type: "FAN", State: false},                           // off
+			{ID: 6, Type: "FAN", Unit: "RPM", State: int32(0)},           // 0 rpm
+			{ID: 7, Type: "LIGHT", State: false},                         // off
+			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(500)},        // 0 lux
 		},
 		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "TEMPERATURE", Unit: "°C"},
-			{ID: 2, Type: "HUMIDITY", Unit: "%"},
-			{ID: 3, Type: "LIGHT", Unit: "lx"},
+			{ID: 1, Type: "TEMPERATURE", Unit: "°C", Value: float32(20.0)},
+			{ID: 2, Type: "HUMIDITY", Unit: "%", Value: float32(50.0)},
+			{ID: 3, Type: "LIGHT", Unit: "lx", Value: float32(100.0)},
 		},
 	}
 
@@ -44,7 +44,7 @@ func main() {
 	if len(ipList) == 0 {
 		log.Println("Searching for server... (search duration: 3s)")
 		var err error
-		ipList, err = util.FindServer(3 * time.Second)
+		ipList, err = utilNet.FindServer(3 * time.Second)
 		if err != nil {
 			log.Fatalf("Error searching for servers: %v\n", err)
 		}
@@ -55,6 +55,7 @@ func main() {
 
 	c := connectionhandler.ConnectionHandler{
 		ServerIPs: ipList,
+		Node:      node,
 	}
 
 	log.Println("Connecting to server...")
@@ -63,7 +64,7 @@ func main() {
 	}
 
 	log.Println("Registering node...")
-	assignedID, err := c.Register(node)
+	assignedID, err := c.Register(*node)
 	if err != nil {
 		log.Fatalf("Failed to register: %v", err)
 	}
@@ -74,11 +75,13 @@ func main() {
 	onSensorUpdate := func(sensor *entity.Sensor[any]) {
 		log.Printf("Sensor %d, type %s, updated: %v%s\n", sensor.ID, sensor.Type, sensor.Value, sensor.Unit)
 		if err := c.SendSensorUpdate(*sensor); err != nil {
-			log.Printf("Failed to send sensor update: %v\n", err)
+			log.Fatalf("Failed to send sensor update: %v\n", err)
 		}
 	}
 
 	g := greenhouse.NewGreenhouse(node, outdoorConditions, onSensorUpdate)
+
+	go c.StartListeningForCommands()
 
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {

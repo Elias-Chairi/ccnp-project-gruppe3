@@ -1,4 +1,4 @@
-package util
+package general
 
 type number interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64

@@ -93,13 +93,13 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 **Top-level**: TLV, does not need request/response matching since updates do not expect a reply.
 
-| Type (hex)               | Direction              | Expected value              | Response |
-| ------------------------ | ---------------------- | --------------------------- | -------- |
-| `0x44` – SENSOR_UPDATE   | Node → Server (TCP)    | [Sensor entry]              |          |
-| `0x44` – SENSOR_UPDATE   | Server → Control (TCP) | [SINGLE_NODE][Sensor entry] |          |
-| `0x45` – ACTUATOR_UPDATE | Server → Control (TCP) | [Actuator entry]            |          |
-| `0x46` – NODE_ADDED      | Server → Control (TCP) | [Node entry]                |          |
-| `0x47` – NODE_REMOVED    | Server → Control (TCP) | [SINGLE_NODE]               |          |
+| Type (hex)               | Direction              | Expected value                | Response |
+| ------------------------ | ---------------------- | ----------------------------- | -------- |
+| `0x44` – SENSOR_UPDATE   | Node → Server (TCP)    | [Sensor entry]                |          |
+| `0x44` – SENSOR_UPDATE   | Server → Control (TCP) | [SINGLE_NODE][Sensor entry]   |          |
+| `0x45` – ACTUATOR_UPDATE | Server → Control (TCP) | [SINGLE_NODE][Actuator entry] |          |
+| `0x46` – NODE_ADDED      | Server → Control (TCP) | [Node entry]                  |          |
+| `0x47` – NODE_REMOVED    | Server → Control (TCP) | [SINGLE_NODE]                 |          |
 
 #### Command
 

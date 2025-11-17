@@ -16,8 +16,8 @@ type ActuatorSelector struct {
 }
 
 // NewSingleActuatorSelector creates a selector for a single actuator.
-func NewSingleActuatorSelector(actuatorID uint8) *ActuatorSelector {
-	return &ActuatorSelector{
+func NewSingleActuatorSelector(actuatorID uint8) ActuatorSelector {
+	return ActuatorSelector{
 		Type:        constants.SINGLE_ACTUATOR,
 		ActuatorIDs: []uint8{actuatorID},
 	}

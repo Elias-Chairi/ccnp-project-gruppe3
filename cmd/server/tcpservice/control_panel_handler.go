@@ -11,35 +11,42 @@ import (
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
-var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
+var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, senderReqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.COMMAND): // received command from control panel, forward to node
 		msg, err := messages.DecodeCommandMessage(tlv, true)
 		if err != nil {
-			_ = writeMessage(conn, nil, messages.AckErrorMessage{
+			_ = writeMessage(conn, senderReqID, messages.AckErrorRequestIDMessage{
 				Code: constants.ERR_MALFORMED_MESSAGE,
 			})
 			return
 		}
 
-		reqID := t.pendingReq.Add(Request{
+		reqID := t.pendingReq.Add(utilNet.Request{
 			Msg:    msg,
 			Sender: conn,
+			ReqID:  *senderReqID,
 		})
 
 		switch msg.NodeSelector.Type {
 		case constants.SINGLE_NODE:
-			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msg)
+			// because the node doesn't need to know about the node selector, we create a copy without it
+			msgToNode := new(messages.CommandMessage)
+			*msgToNode = *msg
+			msgToNode.NodeSelector = nil
+
+			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msgToNode)
 			if err != nil {
 				if errors.Is(err, ErrNodeNotFound) {
-					_ = writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, senderReqID, messages.AckErrorRequestIDMessage{
 						Code: constants.ERR_UNKNOWN_NODE_ID,
 					})
 				} else {
-					_ = writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, senderReqID, messages.AckErrorRequestIDMessage{
 						Code: constants.ERR_INTERNAL_SERVER_ERROR,
 					})
 				}
+				t.pendingReq.Remove(reqID)
 				return
 			}
 		case constants.NODE_LIST:
@@ -49,7 +56,7 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 		}
 
 	default:
-		writeMessage(conn, nil, messages.AckErrorMessage{
+		_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
 	}
@@ -61,13 +68,20 @@ type ControlPanelRegistry struct {
 	ctrlPan []*utilNet.SafeConn
 }
 
-// GetAllExcept returns all control panel connections except the specified one.
-func (r *ControlPanelRegistry) GetAllExcept(except *utilNet.SafeConn) []*utilNet.SafeConn {
+// GetAll returns all control panel connections.
+func (r *ControlPanelRegistry) GetAll() []*utilNet.SafeConn {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	copied := make([]*utilNet.SafeConn, len(r.ctrlPan))
+	copy(copied, r.ctrlPan)
+	return copied
+}
+
+// GetAllExcept returns all control panel connections except the specified one.
+func (r *ControlPanelRegistry) GetAllExcept(except *utilNet.SafeConn) []*utilNet.SafeConn {
 	var conns []*utilNet.SafeConn
-	for _, c := range r.ctrlPan {
+	for _, c := range r.GetAll() {
 		if c != except {
 			conns = append(conns, c)
 		}

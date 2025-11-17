@@ -1,11 +1,10 @@
-package tcpservice
+package utilnet
 
 import (
 	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
-	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 )
 
 type PendingRequests struct {
@@ -15,7 +14,8 @@ type PendingRequests struct {
 
 type Request struct {
 	Msg    messages.TopLevelMessage
-	Sender *utilNet.SafeConn
+	Sender *SafeConn
+	ReqID  uint16
 }
 
 func NewPendingRequests() *PendingRequests {

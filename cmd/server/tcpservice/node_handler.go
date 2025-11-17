@@ -3,56 +3,79 @@ package tcpservice
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
-	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util"
+	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.SENSOR_UPDATE):
-		// todo: handle sensor update
-		// return messages.AckSuccessMessage()
+		msg, err := messages.DecodeSensorUpdateMessage(tlv)
+		if err != nil {
+			// malformed sensor update message, ignore
+			return
+		}
+
+		// forward sensor update to all connected control panels
+		t.NotifyAllControlPanels(messages.NewSensorUpdateMessage(msg.Sensor))
 	case uint8(constants.ACK_ERROR_REQUESTID):
+		msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
+		if err != nil {
+			// malformed ack/error message, ignore
+			return
+		}
+
 		req, ok := t.pendingReq.Get(*reqID)
 		if !ok {
 			// unknown request ID, ignore
 			return
 		}
 
-		switch reqMsg := req.Msg.(type) {
-		case *messages.CommandMessage:
-			// command response from node to control panel
-			switch reqMsg.NodeSelector.Type {
-			case constants.SINGLE_NODE:
-				// acknowledge to original sender
-				_ = writeMessage(req.Sender, nil, messages.AckSuccessMessage())
+		if msg.IsError() {
+			// write error to original sender
+			_ = writeMessage(req.Sender, &req.ReqID, msg)
+		} else {
+			switch reqMsg := req.Msg.(type) {
+			case *messages.CommandMessage:
+				// command response from node to control panel
+				switch reqMsg.NodeSelector.Type {
+				case constants.SINGLE_NODE:
+					log.Printf("Control panel successfully updated actuator %d on node %d\n",
+						reqMsg.ActuatorSelector.ActuatorIDs[0],
+						reqMsg.NodeSelector.NodeIDs[0],
+					)
 
-				// forward actuator update to all other control panels
-				for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
-					_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+					// update servers registry with new actuator state
+					t.nodeReg.UpdateActuatorState(reqMsg.NodeSelector.NodeIDs[0], reqMsg.ActuatorSelector.ActuatorIDs[0], reqMsg.ActuatorState)
+
+					// acknowledge to original sender
+					_ = writeMessage(req.Sender, &req.ReqID, messages.AckRequestIDSuccessMessage())
+
+					// forward actuator update to all other control panels
+					for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
+						_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(*reqMsg.NodeSelector, reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+					}
+				case constants.NODE_LIST:
+					// maybe future functionality
+				case constants.ALL_NODES:
+					// maybe future functionality
 				}
-			case constants.NODE_LIST:
-				// maybe future functionality
-			case constants.ALL_NODES:
-				// maybe future functionality
+			default:
+				// unknown original message type, ignore
+				return
 			}
-		default:
-			// unknown original message type, ignore
-			return
 		}
 
 		t.pendingReq.Remove(*reqID)
-
-		// todo: handle ack error
-		// return messages.AckSuccessMessage()
 	default:
-		writeMessage(conn, nil, messages.AckErrorMessage{
+		_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
 	}
@@ -71,62 +94,60 @@ type NodeInfo struct {
 	Actuators []entity.Actuator[any]
 }
 
-func testNodes() []entity.Node {
-	nodeA := entity.Node{
-		ID: 1,
-		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "Temperature", Unit: "°C", Value: 22.3},
-			{ID: 2, Type: "Humidity", Unit: "%", Value: 55},
-			{ID: 3, Type: "CO2", Unit: "ppm", Value: 420},
-		},
-		Actuators: []entity.Actuator[any]{
-			{ID: 1, Type: "Heater", State: "OFF"},
-			{ID: 2, Type: "Fan", State: "ON"},
-			{ID: 3, Type: "Sprinkler", State: "OFF"},
-		},
-	}
+// func testNodes() []entity.Node {
+// 	nodeA := entity.Node{
+// 		ID: 1,
+// 		Sensors: []entity.Sensor[any]{
+// 			{ID: 1, Type: "Temperature", Unit: "°C", Value: 22.3},
+// 			{ID: 2, Type: "Humidity", Unit: "%", Value: 55},
+// 			{ID: 3, Type: "CO2", Unit: "ppm", Value: 420},
+// 		},
+// 		Actuators: []entity.Actuator[any]{
+// 			{ID: 1, Type: "Heater", State: "OFF"},
+// 			{ID: 2, Type: "Fan", State: "ON"},
+// 			{ID: 3, Type: "Sprinkler", State: "OFF"},
+// 		},
+// 	}
 
-	// --- Greenhouse B ---
-	nodeB := entity.Node{
-		ID: 2,
-		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "Temperature", Unit: "°C", Value: 25.7},
-			{ID: 2, Type: "Humidity", Unit: "%", Value: int32(48)},
-			{ID: 3, Type: "CO2", Unit: "ppm", Value: int32(390)},
-		},
-		Actuators: []entity.Actuator[any]{
-			{ID: 1, Type: "Heater", Unit: "", State: "OFF"},
-			{ID: 2, Type: "Fan", Unit: "RPM", State: 300},
-			{ID: 3, Type: "Window", Unit: "%open", State: 0.5},
-		},
-	}
+// 	// --- Greenhouse B ---
+// 	nodeB := entity.Node{
+// 		ID: 2,
+// 		Sensors: []entity.Sensor[any]{
+// 			{ID: 1, Type: "Temperature", Unit: "°C", Value: 25.7},
+// 			{ID: 2, Type: "Humidity", Unit: "%", Value: int32(48)},
+// 			{ID: 3, Type: "CO2", Unit: "ppm", Value: int32(390)},
+// 		},
+// 		Actuators: []entity.Actuator[any]{
+// 			{ID: 1, Type: "Heater", Unit: "", State: "OFF"},
+// 			{ID: 2, Type: "Fan", Unit: "", State: "OFF"},
+// 			{ID: 3, Type: "Sprinkler", Unit: "", State: "ON"},
+// 		},
+// 	}
 
-	// --- Greenhouse C ---
-	nodeC := entity.Node{
-		ID: 3,
-		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "Temperature", Unit: "°C", Value: float32(19.5)},
-			{ID: 2, Type: "Humidity", Unit: "%", Value: int32(62)},
-			{ID: 3, Type: "CO2", Unit: "ppm", Value: int32(450)},
-		},
-		Actuators: []entity.Actuator[any]{
-			{ID: 1, Type: "Heater", Unit: "", State: false},
-			{ID: 2, Type: "Fan", Unit: "", State: true},
-			{ID: 3, Type: "Sprinkler", Unit: "", State: "OFF"},
-		},
-	}
+// 	// --- Greenhouse C ---
+// 	nodeC := entity.Node{
+// 		ID: 3,
+// 		Sensors: []entity.Sensor[any]{
+// 			{ID: 1, Type: "Temperature", Unit: "°C", Value: float32(19.5)},
+// 			{ID: 2, Type: "Humidity", Unit: "%", Value: int32(62)},
+// 			{ID: 3, Type: "CO2", Unit: "ppm", Value: int32(450)},
+// 		},
+// 		Actuators: []entity.Actuator[any]{
+// 			{ID: 1, Type: "Heater", Unit: "", State: false},
+// 			{ID: 2, Type: "Fan", Unit: "", State: true},
+// 			{ID: 3, Type: "Sprinkler", Unit: "", State: "OFF"},
+// 		},
+// 	}
 
-	// --- Combine all nodes ---
-	nodes := []entity.Node{nodeA, nodeB, nodeC}
-	return nodes
-}
+// 	// --- Combine all nodes ---
+// 	nodes := []entity.Node{nodeA, nodeB, nodeC}
+// 	return nodes
+// }
 
 // GetAllNodes returns a slice of all registered nodes.
 func (r *NodeRegistry) GetAllNodes() []entity.Node {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	return testNodes()
 
 	nodes := make([]entity.Node, len(r.nodes))
 	i := 0
@@ -147,6 +168,24 @@ func (r *NodeRegistry) GetAllNodes() []entity.Node {
 func NewNodeRegistry() *NodeRegistry {
 	return &NodeRegistry{
 		nodes: make(map[uint8]*NodeInfo),
+	}
+}
+
+// UpdateActuatorState updates the state of a specific actuator for a given node.
+func (r *NodeRegistry) UpdateActuatorState(nodeID uint8, actuatorID uint8, newState any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodeInfo, exists := r.nodes[nodeID]
+	if !exists {
+		return
+	}
+
+	for i, actuator := range nodeInfo.Actuators {
+		if actuator.ID == actuatorID {
+			nodeInfo.Actuators[i].State = newState
+			return
+		}
 	}
 }
 
