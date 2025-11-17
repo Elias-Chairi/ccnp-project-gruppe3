@@ -46,7 +46,7 @@ func DecodeNodeRemovedMessage(tlv encoding.TLV) (*nodeRemoveMessage, error) {
 	}
 
 	if nodeRemovedVal.Type() != uint8(constants.SINGLE_NODE) {
-		return nil, fmt.Errorf("expected SINGLE_NODE TLV, got %d", tlv.Type())
+		return nil, fmt.Errorf("expected SINGLE_NODE TLV, got %d", nodeRemovedVal.Type())
 	}
 
 	nodeID, err := encoding.DecodeByte(nodeRemovedVal.Value())
