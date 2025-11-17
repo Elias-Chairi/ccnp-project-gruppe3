@@ -72,7 +72,7 @@ func (m *sensorUpdateMessage) Encode() (encoding.TLV, error) {
 
 // DecodeSensorUpdateMessage decodes a SENSOR_UPDATE message from TLV.
 // Validates type (SENSOR_UPDATE), optional NodeID TLV length (1), and presence of sensor entry.
-func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
+func DecodeSensorUpdateMessage(t encoding.TLV, expectNode bool) (*sensorUpdateMessage, error) {
 	if t == nil {
 		return nil, fmt.Errorf("data is nil")
 	}
@@ -109,6 +109,10 @@ func DecodeSensorUpdateMessage(t encoding.TLV) (*sensorUpdateMessage, error) {
 		}
 	}
 
+	// Validation
+	if expectNode && msg.NodeID == nil {
+		return nil, fmt.Errorf("missing SINGLE_NODE TLV in SENSOR_UPDATE message")
+	}
 	if sensor == nil {
 		return nil, fmt.Errorf("sensor entry not found in SENSOR_UPDATE message")
 	}

@@ -17,14 +17,20 @@ import (
 var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, reqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.SENSOR_UPDATE):
-		msg, err := messages.DecodeSensorUpdateMessage(tlv)
+		msg, err := messages.DecodeSensorUpdateMessage(tlv, false)
 		if err != nil {
 			// malformed sensor update message, ignore
 			return
 		}
 
+		nodeID, ok := t.nodeReg.GetNodeIDByConn(conn)
+		if !ok {
+			// unknown node, ignore
+			return
+		}
+
 		// forward sensor update to all connected control panels
-		t.NotifyAllControlPanels(messages.NewSensorUpdateMessage(msg.Sensor))
+		t.NotifyAllControlPanels(messages.NewSensorUpdateMessageWithNode(nodeID, msg.Sensor))
 	case uint8(constants.ACK_ERROR_REQUESTID):
 		msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
 		if err != nil {
@@ -143,6 +149,17 @@ type NodeInfo struct {
 // 	nodes := []entity.Node{nodeA, nodeB, nodeC}
 // 	return nodes
 // }
+
+func (r *NodeRegistry) GetNodeIDByConn(conn *utilNet.SafeConn) (uint8, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for id, info := range r.nodes {
+		if info.Conn == conn {
+			return id, true
+		}
+	}
+	return 0, false
+}
 
 // GetAllNodes returns a slice of all registered nodes.
 func (r *NodeRegistry) GetAllNodes() []entity.Node {

@@ -130,13 +130,13 @@ func (c *connectionHandler) startListening() {
 
 		switch tlv.Type() {
 		case uint8(constants.SENSOR_UPDATE):
-			// msg, err := messages.DecodeSensorUpdateMessage(tlv)
-			// if err != nil {
-			// 	// malformed sensor update message, ignore
-			// 	continue
-			// }
+			msg, err := messages.DecodeSensorUpdateMessage(tlv, true)
+			if err != nil {
+				// malformed sensor update message, ignore
+				continue
+			}
 
-			// c.UI.SensorUpdate(*msg.NodeID, msg.Sensor.ID, msg.Sensor.Value)
+			c.UI.SensorUpdate(*msg.NodeID, msg.Sensor.ID, msg.Sensor.Value)
 		case uint8(constants.ACTUATOR_UPDATE):
 			msg, err := messages.DecodeActuatorUpdateMessage(tlv)
 			if err != nil {
