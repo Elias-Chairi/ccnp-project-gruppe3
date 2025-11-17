@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"fmt"
+
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
@@ -35,7 +37,16 @@ func (m *nodeAddedMessage) Encode() (encoding.TLV, error) {
 }
 
 func DecodeNodeAddedMessage(tlv encoding.TLV) (*nodeAddedMessage, error) {
-	node, err := encoding.DecodeNodeEntry(tlv)
+	if tlv.Type() != uint8(constants.NODE_ADDED) {
+		return nil, fmt.Errorf("expected NODE_ADDED TLV, got %d", tlv.Type())
+	}
+
+	nodeAddedVal, err := encoding.DecodeTLV(tlv.Value())
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := encoding.DecodeNodeEntry(nodeAddedVal)
 	if err != nil {
 		return nil, err
 	}
