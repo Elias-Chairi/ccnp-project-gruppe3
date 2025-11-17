@@ -30,6 +30,13 @@ func (m *ActuatorUpdateMessage) Type() constants.MessageType {
 func (m *ActuatorUpdateMessage) Encode() (encoding.TLV, error) {
 	var tlvs []encoding.TLV
 
+	// Encode node selector
+	nodeSelectorTLV, err := m.NodeSelector.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode Node Selector: %w", err)
+	}
+	tlvs = append(tlvs, nodeSelectorTLV)
+
 	// Encode actuator selector
 	actuatorSelectorTLV, err := m.ActuatorSelector.Encode()
 	if err != nil {
