@@ -2,44 +2,43 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/connectionhandler"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/cmd/node/greenhouse"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
+	utilJson "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/json"
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 func main() {
-	node := &entity.Node{
-		ID: 1,
-		Actuators: []entity.Actuator[any]{
-			{ID: 1, Type: "HEATER", State: false},                        // off
-			{ID: 2, Type: "HEATER", Unit: "°C", State: int32(0)},         // 0 °C (no heating) (heater cannot make it colder)
-			{ID: 4, Type: "WINDOW", Unit: "% open", State: float32(0.0)}, // 0% open
-			{ID: 5, Type: "FAN", State: false},                           // off
-			{ID: 6, Type: "FAN", Unit: "RPM", State: int32(0)},           // 0 rpm
-			{ID: 7, Type: "LIGHT", State: false},                         // off
-			{ID: 8, Type: "LIGHT", Unit: "lx", State: int32(500)},        // 0 lux
-		},
-		Sensors: []entity.Sensor[any]{
-			{ID: 1, Type: "TEMPERATURE", Unit: "°C", Value: float32(20.0)},
-			{ID: 2, Type: "HUMIDITY", Unit: "%", Value: float32(50.0)},
-			{ID: 3, Type: "LIGHT", Unit: "lx", Value: float32(100.0)},
-		},
-	}
-
-	outdoorConditions := greenhouse.OutdoorConditions{
-		Temperature: 10.0,
-		Humidity:    70.0,
-		LightLevel:  200.0,
-	}
+	greenhouseConfigPath := flag.String("config", "", "Path to the greenhouse JSON configuration file")
 
 	var ipList util.IPList
 	flag.Var(&ipList, "server", "A comma-separated list of server IP addresses")
+
 	flag.Parse()
+
+	if *greenhouseConfigPath == "" {
+		fmt.Println("Please provide a greenhouse configuration file path using the -config flag e.g., -config=examples/greenhouse-configs/greenhouse1.json")
+		flag.PrintDefaults() // Prints usage information
+		os.Exit(1)
+	}
+
+	log.Println("Loading greenhouse configuration...")
+	configData, err := os.ReadFile(*greenhouseConfigPath)
+	if err != nil {
+		log.Fatalf("Failed to read greenhouse configuration file: %v", err)
+	}
+
+	node, outdoorConditions, err := utilJson.ParseGreenhouseJSON(string(configData))
+	if err != nil {
+		log.Fatalf("Failed to parse greenhouse configuration: %v", err)
+	}
 
 	if len(ipList) == 0 {
 		log.Println("Searching for server... (search duration: 3s)")
@@ -49,13 +48,15 @@ func main() {
 			log.Fatalf("Error searching for servers: %v\n", err)
 		}
 		if len(ipList) == 0 {
-			log.Fatalln("No servers found, please specify server IPs manually using the -server flag.")
+			log.Println("No servers found, please specify server IPs manually using the -server flag.")
+			flag.PrintDefaults() // Prints usage information
+			os.Exit(1)
 		}
 	}
 
 	c := connectionhandler.ConnectionHandler{
 		ServerIPs: ipList,
-		Node:      node,
+		Node:      &node,
 	}
 
 	log.Println("Connecting to server...")
@@ -64,7 +65,7 @@ func main() {
 	}
 
 	log.Println("Registering node...")
-	assignedID, err := c.Register(*node)
+	assignedID, err := c.Register(node)
 	if err != nil {
 		log.Fatalf("Failed to register: %v", err)
 	}
@@ -79,7 +80,7 @@ func main() {
 		}
 	}
 
-	g := greenhouse.NewGreenhouse(node, outdoorConditions, onSensorUpdate)
+	g := greenhouse.NewGreenhouse(&node, outdoorConditions, onSensorUpdate)
 
 	go c.StartListeningForCommands()
 
