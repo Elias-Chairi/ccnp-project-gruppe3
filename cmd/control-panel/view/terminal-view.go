@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
 	util "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/general"
@@ -14,13 +15,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Controller defines the interface for sending commands to actuators.
 type Controller interface {
 	SendCommand(nodeID uint8, actuatorID uint8, state any) error
 }
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	nodes      []entity.Node
 	teaProgram *tea.Program
 	Controller Controller
 }
@@ -42,7 +43,6 @@ type setNodes struct {
 //
 // Panics if the tea program is not started.
 func (t *TerminalView) SetInitialNodes(nodes []entity.Node) {
-	t.nodes = nodes
 	t.teaProgram.Send(setNodes{nodes: nodes})
 }
 
@@ -102,6 +102,14 @@ func (t *TerminalView) ActuatorCommandResponse(nodeID uint8, actuatorID uint8, s
 	})
 }
 
+func (t *TerminalView) NodeAdded(node entity.Node) {
+	t.teaProgram.Send(nodeAddedMsg{node: node})
+}
+
+func (t *TerminalView) NodeRemoved(nodeID uint8) {
+	t.teaProgram.Send(nodeRemovedMsg{nodeID: nodeID})
+}
+
 // --------------------- Bubble Tea Model ---------------------
 
 type viewState int
@@ -115,9 +123,8 @@ const (
 type model struct {
 	viewState        viewState
 	message          string
-	choices          []string
 	cursor           int
-	nodes            []entity.Node
+	nodes            *[]entity.Node
 	selectedNode     int
 	stack            *util.Stack[model] // used to manage navigation history
 	err              error
@@ -149,17 +156,29 @@ type actuatorResponseMsg struct {
 	actuatorUpdateMsg
 }
 
-func (m *model) getNodeByID(id uint8) *entity.Node {
-	for i := range m.nodes {
-		if m.nodes[i].ID == id {
-			return &m.nodes[i]
+type nodeAddedMsg struct {
+	node entity.Node
+}
+
+type nodeRemovedMsg struct {
+	nodeID uint8
+}
+
+func (m *model) getNodeByID(id uint8) (int, *entity.Node) {
+	if m.nodes == nil {
+		return -1, nil
+	}
+	nodes := *m.nodes
+	for i := range nodes {
+		if nodes[i].ID == id {
+			return i, &nodes[i]
 		}
 	}
-	return nil
+	return -1, nil
 }
 
 func (m *model) updateSensor(nodeID uint8, sensorID uint8, value any) {
-	node := m.getNodeByID(nodeID)
+	_, node := m.getNodeByID(nodeID)
 	if node == nil {
 		return
 	}
@@ -172,7 +191,7 @@ func (m *model) updateSensor(nodeID uint8, sensorID uint8, value any) {
 }
 
 func (m *model) updateActuator(nodeID uint8, actuatorID uint8, state any) int {
-	node := m.getNodeByID(nodeID)
+	_, node := m.getNodeByID(nodeID)
 	if node == nil {
 		return -1
 	}
@@ -185,6 +204,17 @@ func (m *model) updateActuator(nodeID uint8, actuatorID uint8, state any) int {
 	return -1
 }
 
+func (m *model) addNode(node entity.Node) {
+	*m.nodes = append(*m.nodes, node)
+}
+
+func (m *model) removeNode(nodeID uint8) {
+	index, _ := m.getNodeByID(nodeID)
+	if index != -1 {
+		*m.nodes = slices.Delete(*m.nodes, index, index+1)
+	}
+}
+
 func initialModel(controller Controller) tea.Model {
 
 	sp := spinner.New()
@@ -192,7 +222,6 @@ func initialModel(controller Controller) tea.Model {
 	return model{
 		viewState:        mainMenuView,
 		message:          "Welcome to the Farm Control Panel!\nPress 'q' to quit.",
-		choices:          []string{"Manage Greenhouses", "Exit"},
 		nodes:            nil,
 		stack:            &util.Stack[model]{},
 		spinner:          sp,
@@ -213,6 +242,10 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var spinnerCmd tea.Cmd
 	m.spinner, spinnerCmd = m.spinner.Update(msg)
+	modelNodes := []entity.Node{}
+	if m.nodes != nil {
+		modelNodes = *m.nodes
+	}
 
 	// Handle editing for ANY actuator
 	var editCmds []tea.Cmd
@@ -230,7 +263,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "enter":
 				raw := m.inputFields[idx].Value()
-				original := m.nodes[m.selectedNode].Actuators[idx].State
+				original := modelNodes[m.selectedNode].Actuators[idx].State
 
 				var state any
 				switch original.(type) {
@@ -266,7 +299,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				m.pendingActuator[idx] = true
 
-				_ = m.controller.SendCommand(m.nodes[m.selectedNode].ID, m.nodes[m.selectedNode].Actuators[idx].ID, state)
+				_ = m.controller.SendCommand(modelNodes[m.selectedNode].ID, modelNodes[m.selectedNode].Actuators[idx].ID, state)
 
 			case "esc", "escape":
 				delete(m.editingActuators, idx)
@@ -285,7 +318,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	//main switchmsg
 	switch msg := msg.(type) {
+	case nodeAddedMsg: // add new node
+		m.addNode(msg.node)
 
+	case nodeRemovedMsg: // remove node by ID
+		if m.viewState == nodeInfoView && modelNodes[m.selectedNode].ID == msg.nodeID {
+			// if currently viewing this node, go back to node list
+			nm, _ := m.stack.Pop()
+			m = *nm
+		}
+		m.removeNode(msg.nodeID)
 	case sensorUpdateMsg: // update sensor value
 		m.updateSensor(msg.nodeID, msg.sensorID, msg.value)
 
@@ -300,7 +342,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.spinner.Tick
 
 	case setNodes:
-		m.nodes = msg.nodes
+		m.nodes = &msg.nodes
 
 	case setErr:
 		m.err = msg.err
@@ -339,12 +381,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "s", "j":
 			limit := 0
 			switch m.viewState {
+			case mainMenuView:
+				limit = 2
+			case nodeListView:
+				limit = len(modelNodes)
 			case nodeInfoView:
-				if m.selectedNode < len(m.nodes) {
-					limit = len(m.nodes[m.selectedNode].Actuators)
+				if m.selectedNode < len(modelNodes) {
+					limit = len(modelNodes[m.selectedNode].Actuators)
 				}
 			default:
-				limit = len(m.choices)
+				limit = 0 // never happening
 			}
 			if m.cursor < limit-1 {
 				m.cursor++
@@ -367,17 +413,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor == 0 {
 					m.stack.Push(m)
 					m.viewState = nodeListView
-					m.choices = make([]string, len(m.nodes))
-					for i := range m.nodes {
-						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-					}
 					m.cursor = 0
 				} else {
 					return m, tea.Quit
 				}
 
 			case nodeListView:
-				if m.cursor < len(m.nodes) {
+				if m.cursor < len(modelNodes) {
 					m.stack.Push(m)
 					m.selectedNode = m.cursor
 					m.viewState = nodeInfoView
@@ -401,17 +443,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor == 0 {
 					m.stack.Push(m)
 					m.viewState = nodeListView
-					m.choices = make([]string, len(m.nodes))
-					for i := range m.nodes {
-						m.choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
-					}
 					m.cursor = 0
 				} else {
 					return m, tea.Quit
 				}
 
 			case nodeListView:
-				if m.cursor < len(m.nodes) {
+				if m.cursor < len(modelNodes) {
 					m.stack.Push(m)
 					m.selectedNode = m.cursor
 					m.viewState = nodeInfoView
@@ -419,7 +457,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			case nodeInfoView:
-				node := &m.nodes[m.selectedNode]
+				node := &(modelNodes)[m.selectedNode]
 				if m.cursor < len(node.Actuators) {
 					// Block interaction if this actuator is waiting for response
 					if m.isActuatorLocked(m.cursor) {
@@ -432,7 +470,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// BOOL actuator
 					case bool:
-						_ = m.controller.SendCommand(m.nodes[m.selectedNode].ID, act.ID, !v)
+						_ = m.controller.SendCommand(modelNodes[m.selectedNode].ID, act.ID, !v)
 
 						// Mark pending and start spinner + fake delay
 						m.pendingActuator[m.cursor] = true
@@ -482,9 +520,14 @@ func (m model) View() string {
 	switch m.viewState {
 
 	case mainMenuView:
-		return renderMenu(" SMART GREENHOUSE CLIENT", m.choices, m.cursor, m.message)
+		choices := []string{"Manage Greenhouses", "Exit"}
+		return renderMenu(" SMART GREENHOUSE CLIENT", choices, m.cursor, m.message)
 	case nodeListView:
-		return renderMenu("Available Greenhouses:", m.choices, m.cursor, m.message)
+		choices := make([]string, len(*m.nodes))
+		for i := range *m.nodes {
+			choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+		}
+		return renderMenu("Available Greenhouses:", choices, m.cursor, m.message)
 	case nodeInfoView:
 		return renderNodeView(m)
 	default:
@@ -543,7 +586,7 @@ func renderMenu(title string, choices []string, cursor int, message string) stri
 }
 
 func renderNodeView(m model) string {
-	node := m.nodes[m.selectedNode]
+	node := (*m.nodes)[m.selectedNode]
 
 	title := fmt.Sprintf(" Greenhouse %c - Node Overview\n", 'A'+m.selectedNode)
 	header := title + "----------------------------------------------\n\n"

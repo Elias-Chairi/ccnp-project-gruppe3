@@ -49,7 +49,7 @@ func TestEncode_SensorUpdateMessage(t *testing.T) {
 	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
-	assert.Equal(expectedData, encoded)
+	assert.Equal(expectedData, encoded.Encode())
 }
 
 func TestDecode_SensorUpdateMessage(t *testing.T) {
@@ -63,7 +63,7 @@ func TestDecode_SensorUpdateMessage(t *testing.T) {
 	})
 	encodedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorEntryTLV}))
 
-	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV)
+	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV, false)
 	assert.NoError(err)
 	assert.NotNil(decoded)
 	assert.Nil(decoded.NodeID)
@@ -112,7 +112,7 @@ func TestEncode_SensorUpdateMessageWithNode(t *testing.T) {
 	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV, sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
-	assert.Equal(expectedData, encoded)
+	assert.Equal(expectedData, encoded.Encode())
 }
 
 func TestDecode_SensorUpdateMessageWithNode(t *testing.T) {
@@ -127,7 +127,7 @@ func TestDecode_SensorUpdateMessageWithNode(t *testing.T) {
 	})
 	encodedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV, sensorEntryTLV}))
 
-	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV)
+	decoded, err := messages.DecodeSensorUpdateMessage(encodedTLV, false)
 	assert.NoError(err)
 	assert.NotNil(decoded)
 	assert.NotNil(decoded.NodeID)
@@ -144,26 +144,26 @@ func TestDecodeSensorUpdateMessage_InvalidArgument(t *testing.T) {
 	assert := assert.New(t)
 
 	// nil TLV
-	_, err := messages.DecodeSensorUpdateMessage(nil)
+	_, err := messages.DecodeSensorUpdateMessage(nil, false)
 	assert.Error(err)
 
 	// wrong type
 	wrongType, _ := encoding.NewTLV(uint8(constants.COMMAND), []byte{})
-	_, err = messages.DecodeSensorUpdateMessage(wrongType)
+	_, err = messages.DecodeSensorUpdateMessage(wrongType, false)
 	assert.Error(err)
 
 	// missing sensor entry
 	nodeIDTLV, _ := encoding.NewTLV(uint8(constants.SINGLE_NODE), []byte{0x07})
 	value := encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV})
 	sensorUpdateTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
-	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
+	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV, false)
 	assert.Error(err)
 
 	// extra unknown TLV
 	unknownTLV, _ := encoding.NewTLV(0xFF, []byte{0x01})
 	value = encoding.EncodeMultipleTLVs([]encoding.TLV{unknownTLV})
 	sensorUpdateTLV, _ = encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
-	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
+	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV, false)
 	assert.Error(err)
 
 	// invalid node ID length (should be 1 byte)
@@ -176,7 +176,7 @@ func TestDecodeSensorUpdateMessage_InvalidArgument(t *testing.T) {
 	})
 	value = encoding.EncodeMultipleTLVs([]encoding.TLV{invalidNodeIDTLV, sensorEntryTLV})
 	sensorUpdateTLV, _ = encoding.NewTLV(uint8(constants.SENSOR_UPDATE), value)
-	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV)
+	_, err = messages.DecodeSensorUpdateMessage(sensorUpdateTLV, false)
 	assert.Error(err)
 
 }

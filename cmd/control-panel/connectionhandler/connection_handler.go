@@ -17,6 +17,8 @@ type UI interface {
 	SensorUpdate(nodeID uint8, sensorID uint8, value any)
 	ActuatorUpdate(nodeID uint8, actuatorID uint8, state any)
 	ActuatorCommandResponse(nodeID uint8, actuatorID uint8, state any, err error)
+	NodeAdded(node entity.Node)
+	NodeRemoved(nodeID uint8)
 }
 
 // connectionHandler manages the connection to the server.
@@ -129,14 +131,30 @@ func (c *connectionHandler) startListening() {
 		}
 
 		switch tlv.Type() {
-		case uint8(constants.SENSOR_UPDATE):
-			// msg, err := messages.DecodeSensorUpdateMessage(tlv)
-			// if err != nil {
-			// 	// malformed sensor update message, ignore
-			// 	continue
-			// }
+		case uint8(constants.NODE_ADDED):
+			msg, err := messages.DecodeNodeAddedMessage(tlv)
+			if err != nil {
+				// malformed node added message, ignore
+				continue
+			}
 
-			// c.UI.SensorUpdate(*msg.NodeID, msg.Sensor.ID, msg.Sensor.Value)
+			c.UI.NodeAdded(msg.Node)
+		case uint8(constants.NODE_REMOVED):
+			msg, err := messages.DecodeNodeRemovedMessage(tlv)
+			if err != nil {
+				// malformed node removed message, ignore
+				continue
+			}
+
+			c.UI.NodeRemoved(msg.NodeID)
+		case uint8(constants.SENSOR_UPDATE):
+			msg, err := messages.DecodeSensorUpdateMessage(tlv, true)
+			if err != nil {
+				// malformed sensor update message, ignore
+				continue
+			}
+
+			c.UI.SensorUpdate(*msg.NodeID, msg.Sensor.ID, msg.Sensor.Value)
 		case uint8(constants.ACTUATOR_UPDATE):
 			msg, err := messages.DecodeActuatorUpdateMessage(tlv)
 			if err != nil {
