@@ -104,7 +104,11 @@ func (t *tcpService) handleRegistration(conn *utilNet.SafeConn) error {
 		if err != nil {
 			return fmt.Errorf("error creating node ID TLV: %w", err)
 		}
-		writeMessage(conn, nil, messages.NewAckMessage(string(nodeID.Encode())))
+		err = writeMessage(conn, nil, messages.NewAckMessage(string(nodeID.Encode())))
+		if err != nil {
+			return fmt.Errorf("error sending assigned node ID to node: %w", err)
+		}
+		log.Printf("Node successfully registered. Assigned NodeID = %d\n", id)
 
 		// notify all control panels about new node
 		updateMsg := messages.NewNodeAddedMessage(entity.Node{

@@ -130,7 +130,31 @@ func (c *connectionHandler) startListening() {
 
 		switch tlv.Type() {
 		case uint8(constants.SENSOR_UPDATE):
-			// maybe future functionality
+			// msg, err := messages.DecodeSensorUpdateMessage(tlv)
+			// if err != nil {
+			// 	// malformed sensor update message, ignore
+			// 	continue
+			// }
+
+			// c.UI.SensorUpdate(*msg.NodeID, msg.Sensor.ID, msg.Sensor.Value)
+		case uint8(constants.ACTUATOR_UPDATE):
+			msg, err := messages.DecodeActuatorUpdateMessage(tlv)
+			if err != nil {
+				// malformed actuator update message, ignore
+				continue
+			}
+
+			switch msg.ActuatorSelector.Type {
+			case constants.SINGLE_ACTUATOR:
+				c.UI.ActuatorUpdate(msg.NodeSelector.NodeIDs[0], msg.ActuatorSelector.ActuatorIDs[0], msg.ActuatorState)
+			case constants.ACTUATOR_LIST:
+				// maybe future functionality
+			case constants.ACTUATOR_TYPE:
+				// maybe future functionality
+			case constants.ALL_ACTUATORS:
+				// maybe future functionality
+			}
+
 		case uint8(constants.ACK_ERROR_REQUESTID):
 			msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
 			if err != nil {
@@ -144,22 +168,24 @@ func (c *connectionHandler) startListening() {
 				continue
 			}
 
-			if msg.IsError() {
-				// maybe future functionality
-				c.UI.ActuatorCommandResponse(0, 0, nil,
-					fmt.Errorf("errorcode %d: command response is error: %s", msg.Code, msg.Data))
-			} else {
-				switch reqMsg := req.Msg.(type) {
-				case *messages.CommandMessage:
+			switch reqMsg := req.Msg.(type) {
+			case *messages.CommandMessage:
+				if msg.IsError() {
 					c.UI.ActuatorCommandResponse(
 						reqMsg.NodeSelector.NodeIDs[0],
 						reqMsg.ActuatorSelector.ActuatorIDs[0],
 						reqMsg.ActuatorState,
-						nil)
-				default:
-					// unknown original message type, ignore
-					continue
+						fmt.Errorf("errorcode %d: command response is error: %s", msg.Code, msg.Data))
+					break
 				}
+				c.UI.ActuatorCommandResponse(
+					reqMsg.NodeSelector.NodeIDs[0],
+					reqMsg.ActuatorSelector.ActuatorIDs[0],
+					reqMsg.ActuatorState,
+					nil)
+			default:
+				// unknown original message type, ignore
+				continue
 			}
 
 			c.pendingReq.Remove(*reqID)

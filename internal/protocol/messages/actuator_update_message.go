@@ -9,12 +9,14 @@ import (
 )
 
 type ActuatorUpdateMessage struct {
+	NodeSelector     selectors.NodeSelector
 	ActuatorSelector selectors.ActuatorSelector
 	ActuatorState    any
 }
 
-func NewActuatorUpdateMessage(actuatorSelector selectors.ActuatorSelector, actuatorState any) *ActuatorUpdateMessage {
+func NewActuatorUpdateMessage(nodeSelector selectors.NodeSelector, actuatorSelector selectors.ActuatorSelector, actuatorState any) *ActuatorUpdateMessage {
 	return &ActuatorUpdateMessage{
+		NodeSelector:     nodeSelector,
 		ActuatorSelector: actuatorSelector,
 		ActuatorState:    actuatorState,
 	}
@@ -68,12 +70,19 @@ func DecodeActuatorUpdateMessage(t encoding.TLV) (*ActuatorUpdateMessage, error)
 	}
 
 	var (
+		nodeSel  *selectors.NodeSelector
 		actSel   *selectors.ActuatorSelector
 		actState any
 	)
 
 	for _, inner := range tlvs {
 		switch {
+		case constants.NodeSelector(inner.Type()).IsValid():
+			ns, err := selectors.DecodeNodeSelector(inner)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode Node Selector: %w", err)
+			}
+			nodeSel = &ns
 		case constants.ActuatorSelector(inner.Type()).IsValid():
 			if actSel != nil {
 				return nil, fmt.Errorf("duplicate Actuator Selector TLV found")
@@ -102,6 +111,10 @@ func DecodeActuatorUpdateMessage(t encoding.TLV) (*ActuatorUpdateMessage, error)
 		}
 	}
 
+	// --- Validation ---
+	if nodeSel == nil {
+		return nil, fmt.Errorf("missing required Node Selector TLV")
+	}
 	if actSel == nil {
 		return nil, fmt.Errorf("missing required Actuator Selector TLV")
 	}
@@ -109,5 +122,5 @@ func DecodeActuatorUpdateMessage(t encoding.TLV) (*ActuatorUpdateMessage, error)
 		return nil, fmt.Errorf("missing required Actuator State TLV")
 	}
 
-	return &ActuatorUpdateMessage{*actSel, actState}, nil
+	return &ActuatorUpdateMessage{*nodeSel, *actSel, actState}, nil
 }

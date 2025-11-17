@@ -122,7 +122,6 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 		}
 		switch tlv.Type() {
 		case uint8(constants.COMMAND):
-			fmt.Println("RECEIVED COMMAND MESSAGE")
 			cmdMsg, err := messages.DecodeCommandMessage(tlv, false)
 			if err != nil {
 				log.Println("Error decoding command message:", err)
@@ -157,8 +156,10 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 					log.Println("Error encoding ACK message for actuator command:", err)
 					continue
 				}
-				fmt.Println("SENDING ACK MESSAGE")
-				c.conn.Write(tlv.EncodeWithRequestID(*reqID))
+				_, err = c.conn.Write(tlv.EncodeWithRequestID(*reqID))
+				if err != nil {
+					log.Println("Error sending ACK message for actuator command:", err)
+				}
 
 			case constants.ACTUATOR_LIST:
 				// maybe future implementation

@@ -160,6 +160,9 @@ func (m *model) getNodeByID(id uint8) *entity.Node {
 
 func (m *model) updateSensor(nodeID uint8, sensorID uint8, value any) {
 	node := m.getNodeByID(nodeID)
+	if node == nil {
+		return
+	}
 	for i := range node.Sensors {
 		if node.Sensors[i].ID == sensorID {
 			node.Sensors[i].Value = value
@@ -170,6 +173,9 @@ func (m *model) updateSensor(nodeID uint8, sensorID uint8, value any) {
 
 func (m *model) updateActuator(nodeID uint8, actuatorID uint8, state any) int {
 	node := m.getNodeByID(nodeID)
+	if node == nil {
+		return -1
+	}
 	for i := range node.Actuators {
 		if node.Actuators[i].ID == actuatorID {
 			node.Actuators[i].State = state
@@ -288,7 +294,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case actuatorResponseMsg: // stop spinner and update actuator state
 		index := m.updateActuator(msg.nodeID, msg.actuatorID, msg.state)
-		delete(m.pendingActuator, index)
+		if index != -1 {
+			delete(m.pendingActuator, index)
+		}
 		return m, m.spinner.Tick
 
 	case setNodes:

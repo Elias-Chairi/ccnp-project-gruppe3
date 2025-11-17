@@ -31,14 +31,10 @@ func (s *SafeConn) Read(data []byte) (int, error) {
 }
 
 func (s *SafeConn) Close() error {
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
 	return s.conn.Close()
 }
 
 func (s *SafeConn) RemoteAddr() net.Addr {
-	s.readMu.Lock()
-	defer s.readMu.Unlock()
 	return s.conn.RemoteAddr()
 }
 

@@ -3,6 +3,7 @@ package tcpservice
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
@@ -25,7 +26,6 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 		// forward sensor update to all connected control panels
 		t.NotifyAllControlPanels(messages.NewSensorUpdateMessage(msg.Sensor))
 	case uint8(constants.ACK_ERROR_REQUESTID):
-		fmt.Println("RECEIVED ACK/ERROR MESSAGE FROM NODE")
 		msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
 		if err != nil {
 			// malformed ack/error message, ignore
@@ -40,23 +40,27 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 
 		if msg.IsError() {
 			// write error to original sender
-			_ = writeMessage(req.Sender, &req.ReqID, req.Msg)
+			_ = writeMessage(req.Sender, &req.ReqID, msg)
 		} else {
 			switch reqMsg := req.Msg.(type) {
 			case *messages.CommandMessage:
 				// command response from node to control panel
 				switch reqMsg.NodeSelector.Type {
 				case constants.SINGLE_NODE:
+					log.Printf("Control panel successfully updated actuator %d on node %d\n",
+						reqMsg.ActuatorSelector.ActuatorIDs[0],
+						reqMsg.NodeSelector.NodeIDs[0],
+					)
+
 					// update servers registry with new actuator state
 					t.nodeReg.UpdateActuatorState(reqMsg.NodeSelector.NodeIDs[0], reqMsg.ActuatorSelector.ActuatorIDs[0], reqMsg.ActuatorState)
 
 					// acknowledge to original sender
-					fmt.Println("SENDING ACK MESSAGE TO CONTROL PANEL")
 					_ = writeMessage(req.Sender, &req.ReqID, messages.AckRequestIDSuccessMessage())
 
 					// forward actuator update to all other control panels
 					for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
-						_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+						_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(*reqMsg.NodeSelector, reqMsg.ActuatorSelector, reqMsg.ActuatorState))
 					}
 				case constants.NODE_LIST:
 					// maybe future functionality
@@ -71,7 +75,6 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 
 		t.pendingReq.Remove(*reqID)
 	default:
-		fmt.Println("Received unknown message type at node handler:", tlv.Type())
 		_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
