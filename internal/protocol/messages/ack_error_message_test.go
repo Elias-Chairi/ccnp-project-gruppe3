@@ -23,7 +23,7 @@ func TestAckSuccessMessage(t *testing.T) {
 func TestEncode(t *testing.T) {
 	assert := assert.New(t)
 
-	msg := messages.AckErrorRequestIDMessage{
+	msg := messages.AckErrorMessage{
 		Code: constants.ACK_SUCCESS,
 		Data: "success",
 	}
@@ -54,7 +54,7 @@ func TestDecode(t *testing.T) {
 func TestEncode_AckMessage_NoData(t *testing.T) {
 	assert := assert.New(t)
 
-	msg := messages.AckErrorRequestIDMessage{
+	msg := messages.AckErrorMessage{
 		Code: 0,
 		Data: "",
 	}

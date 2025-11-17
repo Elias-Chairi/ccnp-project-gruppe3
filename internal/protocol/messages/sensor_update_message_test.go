@@ -49,7 +49,7 @@ func TestEncode_SensorUpdateMessage(t *testing.T) {
 	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
-	assert.Equal(expectedData, encoded)
+	assert.Equal(expectedData, encoded.Encode())
 }
 
 func TestDecode_SensorUpdateMessage(t *testing.T) {
@@ -112,7 +112,7 @@ func TestEncode_SensorUpdateMessageWithNode(t *testing.T) {
 	expectedTLV, _ := encoding.NewTLV(uint8(constants.SENSOR_UPDATE), encoding.EncodeMultipleTLVs([]encoding.TLV{nodeIDTLV, sensorEntryTLV}))
 	expectedData := expectedTLV.Encode()
 
-	assert.Equal(expectedData, encoded)
+	assert.Equal(expectedData, encoded.Encode())
 }
 
 func TestDecode_SensorUpdateMessageWithNode(t *testing.T) {
