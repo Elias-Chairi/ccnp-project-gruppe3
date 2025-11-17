@@ -339,7 +339,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			nm, _ := m.stack.Pop()
 			m = *nm
 		}
-		if m.viewState == nodeListView && len(modelNodes) > 0 && modelNodes[m.cursor].ID == msg.nodeID {
+		if m.viewState == nodeListView && modelNodes[m.cursor].ID == msg.nodeID {
 			m.cursor = 0 // reset cursor if the removed node was selected
 		}
 		m.removeNode(msg.nodeID)
