@@ -666,7 +666,7 @@ func renderNodeView(m model) string {
 				value = m.inputFields[i].View()
 			} else {
 				percent := int(f * 100)
-				value = fmt.Sprintf("%d %%", percent)
+				value = fmt.Sprintf("%d %s", percent, act.Unit)
 			}
 
 		case bool:

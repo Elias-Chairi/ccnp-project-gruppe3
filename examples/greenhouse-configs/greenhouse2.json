@@ -1,6 +1,5 @@
 {
   "node": {
-    "id": 1,
     "actuators": [
       { "id": 1, "type": "HEATER", "state": false },
       { "id": 5, "type": "FAN", "state": false },
