@@ -6,21 +6,37 @@ import (
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/selectors"
 	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
-// ConnectionHandler manages the connection to the server.
-type ConnectionHandler struct {
+type UI interface {
+	SensorUpdate(nodeID uint8, sensorID uint8, value any)
+	ActuatorUpdate(nodeID uint8, actuatorID uint8, state any)
+	ActuatorCommandResponse(nodeID uint8, actuatorID uint8, state any, err error)
+}
+
+// connectionHandler manages the connection to the server.
+type connectionHandler struct {
+	UI         UI
 	conn       net.Conn
 	ServerIPs  []net.IP
 	pendingReq *utilNet.PendingRequests
 }
 
+func NewConnectionHandler(serverIPs []net.IP, ui UI) *connectionHandler {
+	return &connectionHandler{
+		UI:         ui,
+		ServerIPs:  serverIPs,
+		pendingReq: utilNet.NewPendingRequests(),
+	}
+}
+
 // Connect establishes a TCP connection to the server.
-func (c *ConnectionHandler) Connect() error {
+func (c *connectionHandler) Connect() error {
 	conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{IP: c.ServerIPs[0], Port: 6000})
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
@@ -32,14 +48,14 @@ func (c *ConnectionHandler) Connect() error {
 // Disconnect closes the TCP connection to the server.
 //
 // Panics if the connection is not established.
-func (c *ConnectionHandler) Disconnect() error {
+func (c *connectionHandler) Disconnect() error {
 	return c.conn.Close()
 }
 
 // Register sends a registration message to the server and waits for the response containing the list of nodes.
 //
 // Panics if the connection is not established.
-func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
+func (c *connectionHandler) Register() (*[]entity.Node, error) {
 	msg := messages.NewRegisterControlMessage()
 	encoded, err := msg.Encode()
 	if err != nil {
@@ -81,10 +97,11 @@ func (c *ConnectionHandler) Register() (*[]entity.Node, error) {
 		nodes = append(nodes, *node)
 	}
 
+	go c.startListening()
 	return &nodes, nil
 }
 
-func (c *ConnectionHandler) SendCommand(nodeID uint8, actuatorID uint8, state any) error {
+func (c *connectionHandler) SendCommand(nodeID uint8, actuatorID uint8, state any) error {
 	nodeSel := selectors.NewSingleNodeSelector(nodeID)
 	actuatorSel := selectors.NewSingleActuatorSelector(actuatorID)
 	msg := messages.NewCommandMessage(nodeSel, actuatorSel, state)
@@ -98,9 +115,57 @@ func (c *ConnectionHandler) SendCommand(nodeID uint8, actuatorID uint8, state an
 
 	_, err = c.conn.Write(tlv.EncodeWithRequestID(reqID))
 	if err != nil {
+		c.pendingReq.Remove(reqID)
 		return fmt.Errorf("failed to write to conn: %w", err)
 	}
-
 	return nil
+}
 
+func (c *connectionHandler) startListening() {
+	for {
+		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
+		if err != nil {
+			continue
+		}
+
+		switch tlv.Type() {
+		case uint8(constants.SENSOR_UPDATE):
+			// maybe future functionality
+		case uint8(constants.ACK_ERROR_REQUESTID):
+			msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
+			if err != nil {
+				// malformed ack/error message, ignore
+				continue
+			}
+
+			req, ok := c.pendingReq.Get(*reqID)
+			if !ok {
+				// unknown request ID, ignore
+				continue
+			}
+
+			if msg.IsError() {
+				// maybe future functionality
+				c.UI.ActuatorCommandResponse(0, 0, nil,
+					fmt.Errorf("errorcode %d: command response is error: %s", msg.Code, msg.Data))
+			} else {
+				switch reqMsg := req.Msg.(type) {
+				case *messages.CommandMessage:
+					c.UI.ActuatorCommandResponse(
+						reqMsg.NodeSelector.NodeIDs[0],
+						reqMsg.ActuatorSelector.ActuatorIDs[0],
+						reqMsg.ActuatorState,
+						nil)
+				default:
+					// unknown original message type, ignore
+					continue
+				}
+			}
+
+			c.pendingReq.Remove(*reqID)
+		default:
+			// unknown message type, ignore
+			continue
+		}
+	}
 }

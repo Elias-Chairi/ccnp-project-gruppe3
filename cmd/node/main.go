@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	node := entity.Node{
+	node := &entity.Node{
 		ID: 1,
 		Actuators: []entity.Actuator[any]{
 			{ID: 1, Type: "HEATER", State: false},                        // off
@@ -55,6 +55,7 @@ func main() {
 
 	c := connectionhandler.ConnectionHandler{
 		ServerIPs: ipList,
+		Node:      node,
 	}
 
 	log.Println("Connecting to server...")
@@ -63,7 +64,7 @@ func main() {
 	}
 
 	log.Println("Registering node...")
-	assignedID, err := c.Register(node)
+	assignedID, err := c.Register(*node)
 	if err != nil {
 		log.Fatalf("Failed to register: %v", err)
 	}
@@ -79,6 +80,8 @@ func main() {
 	}
 
 	g := greenhouse.NewGreenhouse(node, outdoorConditions, onSensorUpdate)
+
+	go c.StartListeningForCommands()
 
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {

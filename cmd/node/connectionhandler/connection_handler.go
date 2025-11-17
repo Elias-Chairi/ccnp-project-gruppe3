@@ -1,20 +1,25 @@
 package connectionhandler
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
+	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/constants"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/encoding"
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/protocol/messages"
+	utilNet "github.com/Elias-Chairi/ccnp-project-gruppe3/internal/util/net"
 )
 
 // ConnectionHandler manages the connection to the server.
 type ConnectionHandler struct {
-	conn      net.Conn
+	conn      *utilNet.SafeConn
 	ServerIPs []net.IP
+	Node      *entity.Node
 }
 
 // Connect establishes a TCP connection to the server.
@@ -23,7 +28,7 @@ func (c *ConnectionHandler) Connect() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	c.conn = conn
+	c.conn = utilNet.NewSafeConn(conn)
 	return nil
 }
 
@@ -99,4 +104,72 @@ func (c *ConnectionHandler) SendSensorUpdate(sensor entity.Sensor[any]) error {
 	}
 
 	return nil
+}
+
+// StartListeningForCommands starts a goroutine that listens for incoming command messages from the server
+// and applies them to the given node's actuators.
+func (c *ConnectionHandler) StartListeningForCommands() {
+	for {
+		// read forever incoming messages from server
+		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				log.Println("Connection closed by server")
+				return
+			}
+			log.Println("Error reading message from server:", err)
+			continue
+		}
+		switch tlv.Type() {
+		case uint8(constants.COMMAND):
+			fmt.Println("RECEIVED COMMAND MESSAGE")
+			cmdMsg, err := messages.DecodeCommandMessage(tlv, false)
+			if err != nil {
+				log.Println("Error decoding command message:", err)
+				continue
+			}
+
+			switch cmdMsg.ActuatorSelector.Type {
+			case constants.SINGLE_ACTUATOR:
+				// find actuator in node
+				var actuator *entity.Actuator[any]
+				for i := range c.Node.Actuators {
+					if c.Node.Actuators[i].ID == cmdMsg.ActuatorSelector.ActuatorIDs[0] {
+						actuator = &c.Node.Actuators[i]
+						break
+					}
+				}
+
+				var msg messages.AckErrorRequestIDMessage
+				if actuator == nil {
+					msg = messages.AckErrorRequestIDMessage{
+						Code: constants.ERR_UNKNOWN_ACTUATOR_ID,
+						Data: fmt.Sprintf("Actuator ID %d not found", cmdMsg.ActuatorSelector.ActuatorIDs[0]),
+					}
+				} else {
+					msg = messages.AckRequestIDSuccessMessage()
+					// apply state to actuator
+					actuator.State = cmdMsg.ActuatorState
+					log.Printf("Applied new state to actuator ID %d: %+v\n", actuator.ID, actuator.State)
+				}
+				tlv, err := msg.Encode()
+				if err != nil {
+					log.Println("Error encoding ACK message for actuator command:", err)
+					continue
+				}
+				fmt.Println("SENDING ACK MESSAGE")
+				c.conn.Write(tlv.EncodeWithRequestID(*reqID))
+
+			case constants.ACTUATOR_LIST:
+				// maybe future implementation
+			case constants.ACTUATOR_TYPE:
+				// maybe future implementation
+			case constants.ALL_ACTUATORS:
+				// maybe future implementation
+			}
+		default:
+			log.Printf("Received unknown message type: %d\n", tlv.Type())
+			continue
+		}
+	}
 }

@@ -25,37 +25,54 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 		// forward sensor update to all connected control panels
 		t.NotifyAllControlPanels(messages.NewSensorUpdateMessage(msg.Sensor))
 	case uint8(constants.ACK_ERROR_REQUESTID):
+		fmt.Println("RECEIVED ACK/ERROR MESSAGE FROM NODE")
+		msg, err := messages.DecodeAckErrorRequestIDMessage(tlv)
+		if err != nil {
+			// malformed ack/error message, ignore
+			return
+		}
+
 		req, ok := t.pendingReq.Get(*reqID)
 		if !ok {
 			// unknown request ID, ignore
 			return
 		}
 
-		switch reqMsg := req.Msg.(type) {
-		case *messages.CommandMessage:
-			// command response from node to control panel
-			switch reqMsg.NodeSelector.Type {
-			case constants.SINGLE_NODE:
-				// acknowledge to original sender
-				_ = writeMessage(req.Sender, &req.ReqID, messages.AckSuccessMessage())
+		if msg.IsError() {
+			// write error to original sender
+			_ = writeMessage(req.Sender, &req.ReqID, req.Msg)
+		} else {
+			switch reqMsg := req.Msg.(type) {
+			case *messages.CommandMessage:
+				// command response from node to control panel
+				switch reqMsg.NodeSelector.Type {
+				case constants.SINGLE_NODE:
+					// update servers registry with new actuator state
+					t.nodeReg.UpdateActuatorState(reqMsg.NodeSelector.NodeIDs[0], reqMsg.ActuatorSelector.ActuatorIDs[0], reqMsg.ActuatorState)
 
-				// forward actuator update to all other control panels
-				for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
-					_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+					// acknowledge to original sender
+					fmt.Println("SENDING ACK MESSAGE TO CONTROL PANEL")
+					_ = writeMessage(req.Sender, &req.ReqID, messages.AckRequestIDSuccessMessage())
+
+					// forward actuator update to all other control panels
+					for _, c := range t.ctrlPanReg.GetAllExcept(req.Sender) {
+						_ = writeMessage(c, nil, messages.NewActuatorUpdateMessage(reqMsg.ActuatorSelector, reqMsg.ActuatorState))
+					}
+				case constants.NODE_LIST:
+					// maybe future functionality
+				case constants.ALL_NODES:
+					// maybe future functionality
 				}
-			case constants.NODE_LIST:
-				// maybe future functionality
-			case constants.ALL_NODES:
-				// maybe future functionality
+			default:
+				// unknown original message type, ignore
+				return
 			}
-		default:
-			// unknown original message type, ignore
-			return
 		}
 
 		t.pendingReq.Remove(*reqID)
 	default:
-		_ = writeMessage(conn, nil, messages.AckErrorMessage{
+		fmt.Println("Received unknown message type at node handler:", tlv.Type())
+		_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
 	}
@@ -148,6 +165,24 @@ func (r *NodeRegistry) GetAllNodes() []entity.Node {
 func NewNodeRegistry() *NodeRegistry {
 	return &NodeRegistry{
 		nodes: make(map[uint8]*NodeInfo),
+	}
+}
+
+// UpdateActuatorState updates the state of a specific actuator for a given node.
+func (r *NodeRegistry) UpdateActuatorState(nodeID uint8, actuatorID uint8, newState any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodeInfo, exists := r.nodes[nodeID]
+	if !exists {
+		return
+	}
+
+	for i, actuator := range nodeInfo.Actuators {
+		if actuator.ID == actuatorID {
+			nodeInfo.Actuators[i].State = newState
+			return
+		}
 	}
 }
 

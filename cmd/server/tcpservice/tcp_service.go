@@ -158,7 +158,7 @@ func (t *tcpService) handleConn(conn *utilNet.SafeConn, handle messageHandler) e
 		if err != nil {
 			if !isConnClosedErr(err) {
 				// send error message before closing connection
-				_ = writeMessage(conn, nil, messages.AckErrorMessage{
+				_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 					Code: constants.ERR_MALFORMED_MESSAGE,
 				})
 			}
@@ -180,19 +180,6 @@ func writeMessage(conn *utilNet.SafeConn, reqID *uint16, msg messages.TopLevelMe
 	} else {
 		data = tlv.Encode()
 	}
-
-	// switch tlv.Type() {
-	// case uint8(constants.COMMAND): // writing a command to node, store in pending requests
-	// 	id := t.pendingReq.Add(msg)
-	// 	data = tlv.EncodeWithRequestID(id)
-	// case uint8(constants.ACK_ERROR_REQUESTID): // writing an ack/error with request ID 0 (back to control panel)
-	// 	if reqID == nil {
-	// 		return fmt.Errorf("missing request ID for ACK/ERROR message")
-	// 	}
-	// 	data = tlv.EncodeWithRequestID(*reqID)
-	// default:
-	// 	data = tlv.Encode()
-	// }
 
 	_, err = conn.Write(data)
 	if err != nil {

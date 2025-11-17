@@ -10,7 +10,7 @@ const (
 	DefaultFanRPM     int32   = 1000  // 1000 RPM when fan state is true
 	DefaultLightLUX   int32   = 10000 // 10 000 lux when light state is true
 	DefaultWindowOpen float32 = 1.0   // 100% open when window state is true
-	DefaultHeaterTemp float32 = 30.0  // 30 °C when heater state is true
+	DefaultHeaterTemp int32   = 30    // 30 °C when heater state is true
 
 	TemperatureChangePerFanStep    float32 = 0.50 // 50% convergence towards outdoor temperature per simulation step per fan when MaxWindowOpenness is reached
 	TemperatureChangePerHeaterStep float32 = 0.03 // 3% convergence rate towards heater temperature per simulation step
@@ -35,11 +35,11 @@ type OutdoorConditions struct {
 
 type Greenhouse struct {
 	Outdoor        OutdoorConditions
-	Node           entity.Node
+	Node           *entity.Node
 	onSensorUpdate func(sensor *entity.Sensor[any])
 }
 
-func NewGreenhouse(node entity.Node, outdoor OutdoorConditions, onSensorUpdate func(sensor *entity.Sensor[any])) *Greenhouse {
+func NewGreenhouse(node *entity.Node, outdoor OutdoorConditions, onSensorUpdate func(sensor *entity.Sensor[any])) *Greenhouse {
 	return &Greenhouse{
 		Outdoor:        outdoor,
 		Node:           node,
@@ -87,17 +87,17 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 		case "":
 			if on, ok := a.State.(bool); ok {
 				if on {
-					if currentTemp < DefaultHeaterTemp { // heater only heats
-						currentTemp += (DefaultHeaterTemp - currentTemp) * TemperatureChangePerHeaterStep
+					if currentTemp < float32(DefaultHeaterTemp) { // heater only heats
+						currentTemp += (float32(DefaultHeaterTemp) - currentTemp) * TemperatureChangePerHeaterStep
 					}
 				}
 			} else {
 				log.Printf("HEATER %d has invalid state type %T for the '' unit\n", a.ID, a.State)
 			}
 		case "°C":
-			if targetTemp, ok := a.State.(float32); ok {
-				if currentTemp < targetTemp { // heater only heats
-					currentTemp += (targetTemp - currentTemp) * TemperatureChangePerHeaterStep
+			if targetTemp, ok := a.State.(int32); ok {
+				if currentTemp < float32(targetTemp) { // heater only heats
+					currentTemp += (float32(targetTemp) - currentTemp) * TemperatureChangePerHeaterStep
 				}
 			} else {
 				log.Printf("HEATER %d has invalid state type %T for the '°C' unit\n", a.ID, a.State)
@@ -111,7 +111,7 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 	windowsOpen := float32(0.0)
 	for _, a := range actuators["WINDOW"] {
 		switch a.Unit {
-		case "":
+		case "", "% open":
 			switch open := a.State.(type) {
 			case bool:
 				if open {
@@ -121,6 +121,9 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 			case float32:
 				windowsOpen += open
 				currentTemp += (g.Outdoor.Temperature - currentTemp) * (open * TemperatureChangePerWindowStep)
+			case float64:
+				windowsOpen += float32(open)
+				currentTemp += (g.Outdoor.Temperature - currentTemp) * (float32(open) * TemperatureChangePerWindowStep)
 			default:
 				log.Printf("WINDOW %d has invalid state type %T for the [no unit] unit\n", a.ID, a.State)
 			}

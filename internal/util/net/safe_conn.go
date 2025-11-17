@@ -7,8 +7,9 @@ import (
 )
 
 type SafeConn struct {
-	conn net.Conn
-	mu   sync.Mutex
+	conn    net.Conn
+	writeMu sync.Mutex
+	readMu  sync.Mutex
 }
 
 func NewSafeConn(conn net.Conn) *SafeConn {
@@ -17,30 +18,32 @@ func NewSafeConn(conn net.Conn) *SafeConn {
 	}
 }
 
-func (sc *SafeConn) Write(data []byte) (int, error) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.conn.Write(data)
+func (s *SafeConn) Write(data []byte) (int, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.conn.Write(data)
 }
 
-func (sc *SafeConn) Read(data []byte) (int, error) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.conn.Read(data)
+func (s *SafeConn) Read(data []byte) (int, error) {
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	return s.conn.Read(data)
 }
 
-func (sc *SafeConn) Close() error {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.conn.Close()
+func (s *SafeConn) Close() error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.conn.Close()
 }
 
-func (sc *SafeConn) RemoteAddr() net.Addr {
-	return sc.conn.RemoteAddr()
+func (s *SafeConn) RemoteAddr() net.Addr {
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	return s.conn.RemoteAddr()
 }
 
-func (sc *SafeConn) SetReadDeadline(t time.Time) error {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.conn.SetReadDeadline(t)
+func (s *SafeConn) SetReadDeadline(t time.Time) error {
+	s.readMu.Lock()
+	defer s.readMu.Unlock()
+	return s.conn.SetReadDeadline(t)
 }

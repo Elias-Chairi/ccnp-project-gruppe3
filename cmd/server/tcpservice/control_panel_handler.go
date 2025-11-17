@@ -2,6 +2,7 @@ package tcpservice
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 
@@ -14,14 +15,14 @@ import (
 var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv encoding.TLV, senderReqID *uint16) {
 	switch tlv.Type() {
 	case uint8(constants.COMMAND): // received command from control panel, forward to node
+		fmt.Println("RECEIVED COMMAND MESSAGE FROM CONTROL PANEL")
 		msg, err := messages.DecodeCommandMessage(tlv, true)
 		if err != nil {
-			_ = writeMessage(conn, nil, messages.AckErrorMessage{
+			_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 				Code: constants.ERR_MALFORMED_MESSAGE,
 			})
 			return
 		}
-		msg.NodeSelector = nil // each node don't need to know about the node selector
 
 		reqID := t.pendingReq.Add(utilNet.Request{
 			Msg:    msg,
@@ -31,17 +32,24 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 
 		switch msg.NodeSelector.Type {
 		case constants.SINGLE_NODE:
-			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msg)
+			// because the node don't need to know about the node selector, we create a copy without it
+			msgToNode := new(messages.CommandMessage)
+			*msgToNode = *msg
+			msgToNode.NodeSelector = nil
+
+			fmt.Println("FORWARDING COMMAND MESSAGE TO NODE", msg.NodeSelector.NodeIDs[0])
+			err = t.nodeReg.WriteToNode(msg.NodeSelector.NodeIDs[0], &reqID, msgToNode)
 			if err != nil {
 				if errors.Is(err, ErrNodeNotFound) {
-					_ = writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 						Code: constants.ERR_UNKNOWN_NODE_ID,
 					})
 				} else {
-					_ = writeMessage(conn, nil, messages.AckErrorMessage{
+					_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 						Code: constants.ERR_INTERNAL_SERVER_ERROR,
 					})
 				}
+				t.pendingReq.Remove(reqID)
 				return
 			}
 		case constants.NODE_LIST:
@@ -51,7 +59,7 @@ var handleControlPanel messageHandler = func(t *tcpService, conn *utilNet.SafeCo
 		}
 
 	default:
-		_ = writeMessage(conn, nil, messages.AckErrorMessage{
+		_ = writeMessage(conn, nil, messages.AckErrorRequestIDMessage{
 			Code: constants.ERR_INVALID_MESSAGE_TYPE,
 		})
 	}

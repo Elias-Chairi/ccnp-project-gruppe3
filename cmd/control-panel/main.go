@@ -29,10 +29,8 @@ func main() {
 	}
 
 	t := &view.TerminalView{}
-
-	c := &connectionhandler.ConnectionHandler{
-		ServerIPs: ipList,
-	}
+	c := connectionhandler.NewConnectionHandler(ipList, t)
+	t.Controller = c
 
 	go func() {
 		time.Sleep(time.Second * 1) // simulate loading time
