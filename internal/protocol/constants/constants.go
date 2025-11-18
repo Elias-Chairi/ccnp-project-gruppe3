@@ -25,7 +25,7 @@ const (
 	NODE_REMOVED        MessageType = 0x47
 	COMMAND             MessageType = 0x48
 	ACK_ERROR           MessageType = 0x49
-	ACK_ERROR_REQUESTID MessageType = 0x50
+	ACK_ERROR_REQUESTID MessageType = 0x4A
 )
 
 func (m MessageType) IsValid() bool {
