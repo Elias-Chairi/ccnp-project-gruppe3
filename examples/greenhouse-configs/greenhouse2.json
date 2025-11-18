@@ -1,0 +1,22 @@
+{
+  "node": {
+    "actuators": [
+      { "id": 1, "type": "HEATER", "state": false },
+      { "id": 2, "type": "FAN", "state": false },
+      { "id": 3, "type": "LIGHT", "state": false },
+      { "id": 4, "type": "LIGHT", "state": true }
+    ],
+    "sensors": [
+      { "id": 1, "type": "TEMPERATURE", "unit": "°C", "value": 20.0 },
+      { "id": 2, "type": "TEMPERATURE", "unit": "°C", "value": 25.0 },
+      { "id": 3, "type": "HUMIDITY", "unit": "%", "value": 50.0 },
+      { "id": 4, "type": "HUMIDITY", "unit": "%", "value": 40.0 },
+      { "id": 5, "type": "LIGHT", "unit": "lx", "value": 100.0 }
+    ]
+  },
+  "outdoorConditions": {
+    "temperature": -15.0,
+    "humidity": 10.0,
+    "lightLevel": 400.0
+  }
+}

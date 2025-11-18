@@ -111,7 +111,7 @@ func (g *Greenhouse) updateTemperature(sensor *entity.Sensor[any]) {
 	windowsOpen := float32(0.0)
 	for _, a := range actuators["WINDOW"] {
 		switch a.Unit {
-		case "", "% open":
+		case "", "%", "% open":
 			switch open := a.State.(type) {
 			case bool:
 				if open {

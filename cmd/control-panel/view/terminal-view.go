@@ -204,8 +204,20 @@ func (m *model) updateActuator(nodeID uint8, actuatorID uint8, state any) int {
 	return -1
 }
 
+func (m *model) sortNodes() {
+	slices.SortFunc(*m.nodes, func(a, b entity.Node) int {
+		return int(a.ID) - int(b.ID)
+	})
+}
+
+func (m *model) setNodes(nodes []entity.Node) {
+	m.nodes = &nodes
+	m.sortNodes()
+}
+
 func (m *model) addNode(node entity.Node) {
 	*m.nodes = append(*m.nodes, node)
+	m.sortNodes()
 }
 
 func (m *model) removeNode(nodeID uint8) {
@@ -327,6 +339,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			nm, _ := m.stack.Pop()
 			m = *nm
 		}
+		if m.viewState == nodeListView && modelNodes[m.cursor].ID == msg.nodeID {
+			m.cursor = 0 // reset cursor if the removed node was selected
+		}
 		m.removeNode(msg.nodeID)
 	case sensorUpdateMsg: // update sensor value
 		m.updateSensor(msg.nodeID, msg.sensorID, msg.value)
@@ -342,7 +357,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.spinner.Tick
 
 	case setNodes:
-		m.nodes = &msg.nodes
+		m.setNodes(msg.nodes)
 
 	case setErr:
 		m.err = msg.err
@@ -524,8 +539,8 @@ func (m model) View() string {
 		return renderMenu(" SMART GREENHOUSE CLIENT", choices, m.cursor, m.message)
 	case nodeListView:
 		choices := make([]string, len(*m.nodes))
-		for i := range *m.nodes {
-			choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+i)
+		for i, node := range *m.nodes {
+			choices[i] = fmt.Sprintf("Greenhouse %c", 'A'+node.ID-1)
 		}
 		return renderMenu("Available Greenhouses:", choices, m.cursor, m.message)
 	case nodeInfoView:
@@ -651,7 +666,7 @@ func renderNodeView(m model) string {
 				value = m.inputFields[i].View()
 			} else {
 				percent := int(f * 100)
-				value = fmt.Sprintf("%d %%", percent)
+				value = fmt.Sprintf("%d %s", percent, act.Unit)
 			}
 
 		case bool:
