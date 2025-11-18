@@ -2,44 +2,84 @@
 
 ## Introduction
 
-This document describes the **SmartFarm TRLV Protocol**, a custom application-layer protocol for communication between sensor/actuator nodes, control-panel clients, and a server hub in a smart-farming system.
+This document describes the **SmartFarm TLV Protocol**, a custom application-layer protocol for communication between nodes, control-panels and the server in a smart-farming system.
 
 ## Terminology
 
-| Term                      | Definition                                                                                |
-| ------------------------- | ----------------------------------------------------------------------------------------- |
-| **Node**                  | A sensor/actuator device that reports measurements and executes actuator commands.        |
-| **Control Panel**         | Client application used by the farmer to monitor sensor data and send actuator commands.  |
-| **Server**                | Central hub managing discovery, registration, sensor updates, and command forwarding.     |
-| **TRLV**                  | Type–RequestID–Length–Value binary encoding used for all top-level messages.              |
-| **TLV**                   | Type–Length–Value binary encoding used for all message data.                              |
-| **RequestID**             | Client-generated identifier to match requests and responses.                              |
-| **NodeID**                | Unique identifier assigned by the server to each sensor/actuator node after registration. |
-| **SensorID / ActuatorID** | Local identifiers assigned by a node to its individual sensors or actuators.              |
-| **Node Selector**         | Field indicating which node(s) a command targets (single, list, or ALL).                  |
-| **Actuator Selector**     | Field indicating which actuator(s) a command targets (single, list, type, or ALL).        |
-| **Actuator State**        | Action to apply to an actuator (ON/OFF/SET with value).                                   |
-| **Data Type**             | Code describing the type of a sensor value (integer, float, string).                      |
-| **ACK/ERROR**             | Response message indicating success or error with a command or registration.              |
+| Term                      | Definition                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Node**                  | Greenhouse application with sensors and actuators that send sensor data and receive actuator commands.     |
+| **Control Panel**         | Client application used to monitor all connected greenhouses and send actuator commands.                   |
+| **Actor**                 | Any device communicating with the server (node or control panel).                                          |
+| **Server**                | Server application managing discovery, registration, sensor updates, and command forwarding.               |
+| **TRLV**                  | Type–RequestID–Length–Value binary encoding used for message data that requires request/response matching. |
+| **TLV**                   | Type–Length–Value binary encoding used for all message data.                                               |
+| **RequestID**             | Client-generated identifier to match requests and responses.                                               |
+| **NodeID**                | Unique identifier assigned by the server to each node after registration.                                  |
+| **SensorID / ActuatorID** | Local identifiers assigned by a node to its individual sensors or actuators.                               |
+| **Node Selector**         | Field indicating which node(s) a command targets (single, list, or ALL).                                   |
+| **Actuator Selector**     | Field indicating which actuator(s) a command targets (single, list, type, or ALL).                         |
+| **Data Type**             | Code describing the type of a sensor value (integer, float, string).                                       |
+| **ACK/ERROR**             | Response message indicating success or error with a command or registration.                               |
 
 ## Transport and protocol type
 
 - Discovery: UDP multicast `224.0.0.1:9999`
-  - To allow for minimal configuration, all nodes and control panels use UDP multicast to discover the server.
+  - To allow for minimal configuration, all nodes and control panels use UDP multicast to discover the server's IP address.
   - Best-effort delivery; actors should retry if no response is received.
-- Normal operation: TCP `6000`
+  - NB: Only used if the server is on the same local network as the actor, otherwise the server address must be pre-configured.
+- Normal operation: TCP `server_ip:6000`
   - All further communication uses a single TCP connection to the server.
   - Connection-oriented, each actor maintains a persistent TCP connection to the server. The server keeps reading from each connection indefinitely. If the connection is broken (actor closes it or actor sends malformed data), the actor must re-register.
-  - Stateful, the server maintains a registry of active nodes, their IDs, and their current sensor values and actuator states.
+  - Stateful, the server maintains a registry of:
+    - active nodes, their IDs, and their sensors/actuators with up-to-date sensor values and actuator states.
+    - active control panels.
 
 ## Architecture
+```
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│   Node      │◄───────►│   Server    │◄───────►│   Control   │
+│ (Greenhouse)│         │   (TCP/UDP) │         │    Panel    │
+└─────────────┘         └─────────────┘         └─────────────┘
+```
 
-The actors are:
+The system consists of three roles:
 
-- **Sensor/Actuator Nodes** – connect to the server and send sensor data/receive actuator commands.
-- **Control Panels** – connect to the server and receive updates and send commands.
-- **Server** – listens on TCP/UDP, assigns IDs, maintains registry, forwards messages.
-  The client actors (nodes and controls) never talk directly to each other; the server is the single TCP endpoint.
+**Node**:
+
+1. Connect to the server and register its sensors and actuators.
+2. Then:
+
+   - Send sensor updates when sensor values change
+   - Receive actuator commands from the server and apply them.
+
+**Control Panel**:
+
+1. Connect to the server and receive the current list of all registered nodes.
+2. Then:
+
+   - Receive sensor updates from the server
+   - Send actuator commands to the server.
+   - Receive actuator updates from the server when other control panels send commands.
+   - Receive node added/removed notifications from the server.
+
+**Server**:
+
+- Listen for discovery messages on UDP multicast.
+- Listen for registrations on TCP.
+  1. When a node registers, notify all connected control panels of the new node.
+- Receive messages from connected actors.
+  - Commands (successful):
+    1. Receive command from control panel
+    2. Forward command to target node(s).
+    3. Receive ACK from node(s).
+    4. Forward ACK to originating control panel.
+    5. Send actuator update to all connected control panels except the originating one.
+  - Sensor updates (successful):
+    1. Receive sensor update from node.
+    2. Forward sensor update to all connected control panels.
+- Detect broken connections.
+  1. When a node disconnects, notify all control panels.
 
 ## Message format
 
@@ -87,7 +127,7 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 | `0x42` – REGISTER_NODE    | Node → Server (TCP)    | [List of Actuator and Sensor entries] | ACK[SINGLE_NODE]/ERR          |
 | `0x43` – REGISTER_CONTROL | Control → Server (TCP) |                                       | ACK[List of Node Entries]/ERR |
 
-#### Sensor Update
+#### Sensor Update and Node Events
 
 **Purpose**: Nodes send updated sensor values to the server, which forwards them to all connected control panels.
 
@@ -180,14 +220,14 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 
 ### Data type codes
 
-| Type (hex) | Meaning | Value Encoding                     |
-| ---------- | ------- | ---------------------------------- |
-| `0x91`     | Integer | Variable length, big-endian        |
-| `0x92`     | Float   | Variable length, big-endian        |
-| `0x93`     | String  | Variable length, UTF-8 encoded     |
-| `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true) |
+| Type (hex) | Meaning | Value Encoding                       |
+| ---------- | ------- | ------------------------------------ |
+| `0x91`     | Integer | 4-byte (int32) or 8-byte (int64)     |
+| `0x92`     | Float   | 4-byte (float32) or 8-byte (float64) |
+| `0x93`     | String  | Variable length, UTF-8 encoded       |
+| `0x94`     | Boolean | 1 byte (0x00 = false, 0x01 = true)   |
 
-## ACK/ERR codes
+### ACK/ERR codes
 
 Acknowledgment and error code should be the first byte of the Value field in an ACK/ERROR message. Extra data (e.g., error description) may follow. Extra data is interpreted as a UTF-8 string.
 
@@ -202,14 +242,14 @@ Acknowledgment and error code should be the first byte of the Value field in an 
 | `0xA6`     | ERR: Malformed message    |
 | `0xA7`     | ERR: Invalid message type |
 
-## Supported actuators
+<!-- ## Supported actuators
 
 | Type   | Unit                            | Description                                                  |
 | ------ | ------------------------------- | ------------------------------------------------------------ |
 | FAN    | 'RPM' -> integer, '' -> boolean | The rpm of the fan or on/off with a default speed            |
 | HEATER | '°C' -> float32, '' -> boolean  | Target temperature or on/off with a default temperature      |
 | WINDOW | '' -> float32 / boolean         | Openness percentage (0.0-1.0) or fully open/closed           |
-| LIGHT  | 'lx' -> float32, '' -> boolean  | Target brightness in lux or on/off with a default brightness |
+| LIGHT  | 'lx' -> float32, '' -> boolean  | Target brightness in lux or on/off with a default brightness | -->
 
 ## Example
 
@@ -226,9 +266,9 @@ Value: (empty)
 Server replies:
 
 ```
-Type: 0x46 ACK/ERROR
-Length: N
-Value: "192.168.0.10:6000"
+Type: 0x49 ACK
+Length: 0
+Value: (empty)
 ```
 
 2. Registration (TCP)
@@ -242,45 +282,69 @@ Value: (empty)
 Server replies:
 
 ```
-Type: 0x46 ACK/ERROR
+Type: 0x49 ACK/ERROR
 Length: N
 Value:
-  [NodeList TLV]
-    [NodeEntry TLV]
-      Local ID=0x07
+  [NodeEntry TLV]
+    [Sensor Entries TLV]
       [SensorEntry TLV]
-        Local ID=0x08
+        Local ID=0x01
         Type=[LIGHT]
         Unit=[lux]
         Value=[Float TLV: 350.5]
+      ... (more sensors)
+    [Actuator Entries TLV]
       [ActuatorEntry TLV]
         Local ID=0x01
         Type=[FAN]
         Unit=[rpm]
-        State=0x02 (OFF)
+        State=[Boolean TLV: false (OFF)]
+      ... (more actuators)
+  ... (more nodes)
 ```
 
 ### Control Panel Sends a Command
 
-“Turn ON all fans at Nodes 7, 12, 19”
+“Turn ON actuator 1 on node 2"
 
 ```
 Type: 0x45 COMMAND
+RequestID: 0x0001
 Length: N
-  [NodeSelector TLV]
-    SelectorType = 0x52 NODE_LIST
-      Value = [0x07, 0x0C, 0x13]
-  [ActuatorSelector TLV]
-    SelectorType = 0x63 ACTUATOR_TYPE
-      Value = "FAN"
-  [ActuatorState TLV]
-      State = 0x01 (ON)
-      Value = (empty)
+Value:
+  NodeSelector:
+    Type: 0x51 SINGLE_NODE
+    Length: 1
+    Value: 0x02
+  ActuatorSelector:
+    Type: 0x61 SINGLE_ACTUATOR
+    Length: 1
+    Value: 0x01
+  ActuatorState:
+    Type: 0x94 BOOLEAN
+    Length: 1
+    Value: 0x01 (true, ON)
 ```
 
 ## Reliability
 
+**Transport Layer**:
 TCP ensures reliable delivery of all messages after the initial discovery phase.
+
+**Message Framing**:
+The server always reads until a full message has been received before processing it. If the set timeout for reading is reached without receiving a full message, the server closes the connection and the actor must re-register. This is to avoid desynchronization between the server and actor (e.g., the server doesnt know if the next bytes are part of a new message or a continuation of a previous one).
+
+**Request/Response Matching**:
+Request/response matching using RequestID in TRLV messages ensures that responses are correctly matched to their originating requests, even if multiple requests are in-flight simultaneously.
+
+**Flexible Targeting**:
+Node and actuator selectors allow commands to be targeted to specific nodes/actuators, lists, or all, providing flexibility in command delivery.
+
+**Type Safety**:
+Using specific type codes for different data types (integer, float, string, boolean) ensures that data is interpreted correctly by both sender and receiver.
+
+**Error Handling**:
+Standardized ACK/ERROR responses allow actors to handle errors gracefully and take corrective actions as needed.
 
 ## Security
 
