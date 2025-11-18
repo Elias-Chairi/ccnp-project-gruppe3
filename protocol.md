@@ -243,6 +243,7 @@ Acknowledgment and error code should be the first byte of the Value field in an 
 | `0xA5`     | ERR: Invalid value        |
 | `0xA6`     | ERR: Malformed message    |
 | `0xA7`     | ERR: Invalid message type |
+| `0xA8`     | ERR: Internal server error |
 
 <!-- ## Supported actuators
 
