@@ -36,6 +36,7 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
     - active control panels.
 
 ## Architecture
+
 ```
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
 │   Node      │◄───────►│   Server    │◄───────►│   Control   │
@@ -167,7 +168,7 @@ All 1-byte type codes are partitioned into non-overlapping ranges for clarity an
 | Type (hex)                   | Direction                   | Expected value | Response |
 | ---------------------------- | --------------------------- | -------------- | -------- |
 | `0x49` – ACK/ERROR           | Server → Node/Control (TCP) | [ACK/ERROR]    |          |
-| `0x50` – ACK/ERROR_REQUESTID | Node/Server → Sender (TCP)  | [ACK/ERROR]    |          |
+| `0x4A` – ACK/ERROR_REQUESTID | Node/Server → Sender (TCP)  | [ACK/ERROR]    |          |
 
 ### Node Selectors codes
 
