@@ -26,6 +26,7 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
 
 - Discovery: UDP multicast `224.0.0.1:9999`
   - To allow for minimal configuration, all nodes and control panels use UDP multicast to discover the server's IP address.
+  - It is not expecting any response value, only to get the UDP source address which will be the server's IP.
   - Best-effort delivery; actors should retry if no response is received.
   - NB: Only used if the server is on the same local network as the actor, otherwise the server address must be pre-configured.
 - Normal operation: TCP `server_ip:6000`
