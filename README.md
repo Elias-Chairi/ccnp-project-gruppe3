@@ -51,7 +51,7 @@ The system uses a custom binary **TLV (Type-Length-Value)** and **TRLV (Type-Req
 
 ```
 ccnp-project-gruppe3/
-├── cmd/
+├── cmd/                 # Executable entry points for each component
 │   ├── control-panel/   # TUI control panel application (Bubble Tea)
 │   ├── node/            # Greenhouse node simulator
 │   └── server/          # Central server (UDP discovery + TCP service)
@@ -93,17 +93,6 @@ ccnp-project-gruppe3/
    ```
 
 ## Development
-
-### Code Organization
-
-- **`cmd/`**: Executable entry points for each component
-- **`internal/entity/`**: Core domain types (Node, Sensor, Actuator)
-- **`internal/protocol/`**: Protocol implementation
-  - `encoding/`: Low-level TLV/TRLV binary encoding
-  - `messages/`: Message constructors and decoders
-  - `selectors/`: Logic for targeting nodes/actuators
-  - `constants/`: All protocol type codes
-- **`internal/util/`**: Shared helpers (UDP discovery, stack data structure)
 
 ### Key Features
 
