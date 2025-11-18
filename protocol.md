@@ -19,7 +19,7 @@ This document describes the **SmartFarm TLV Protocol**, a custom application-lay
 | **SensorID / ActuatorID** | Local identifiers assigned by a node to its individual sensors or actuators.                               |
 | **Node Selector**         | Field indicating which node(s) a command targets (single, list, or ALL).                                   |
 | **Actuator Selector**     | Field indicating which actuator(s) a command targets (single, list, type, or ALL).                         |
-| **Data Type**             | Code describing the type of a sensor value (integer, float, string).                                       |
+| **Data Type**             | Code describing the type of a sensor value (integer, float, string, boolean).                              |
 | **ACK/ERROR**             | Response message indicating success or error with a command or registration.                               |
 
 ## Transport and protocol type
