@@ -335,7 +335,7 @@ Value:
 TCP ensures reliable delivery of all messages after the initial discovery phase.
 
 **Message Framing**:
-The server always reads until a full message has been received before processing it. If the set timeout for reading is reached without receiving a full message, the server closes the connection and the actor must re-register. This is to avoid desynchronization between the server and actor (e.g., the server doesnt know if the next bytes are part of a new message or a continuation of a previous one).
+The server always reads until a full message has been received before processing it. If the set timeout for reading is reached without receiving a full message, the server closes the connection and the actor must re-register. This is to avoid desynchronization between the server and actor (e.g., the server doesn't know if the next bytes are part of a new message or a continuation of a previous one).
 
 **Request/Response Matching**:
 Request/response matching using RequestID in TRLV messages ensures that responses are correctly matched to their originating requests, even if multiple requests are in-flight simultaneously.
