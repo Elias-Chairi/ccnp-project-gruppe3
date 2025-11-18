@@ -26,7 +26,7 @@ The system uses UDP multicast for server discovery and persistent TCP connection
 1. **Discovery** (UDP multicast `224.0.0.1:9999`)
 
    - Nodes and control panels broadcast discovery requests
-   - Server responds with its TCP address
+   - Server responds with empty ACK; client extracts server IP from UDP source address
 
 2. **Registration** (TCP port `6000`)
 
