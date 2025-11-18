@@ -311,7 +311,7 @@ Value:
 “Turn ON actuator 1 on node 2"
 
 ```
-Type: 0x45 COMMAND
+Type: 0x48 COMMAND
 RequestID: 0x0001
 Length: N
 Value:
