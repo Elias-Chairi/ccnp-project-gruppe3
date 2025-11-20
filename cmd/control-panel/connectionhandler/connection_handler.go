@@ -22,6 +22,7 @@ type UI interface {
 	ActuatorCommandResponse(nodeID uint8, actuatorID uint8, state any, err error)
 	NodeAdded(node entity.Node)
 	NodeRemoved(nodeID uint8)
+	ConnectionClosed(err error)
 }
 
 // connectionHandler manages the connection to the server.
@@ -132,7 +133,10 @@ func (c *connectionHandler) startListening() {
 		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) {
-				log.Fatalf("Connection to server closed: %v \n", err)
+				if c.UI != nil {
+					c.UI.ConnectionClosed(err)
+				}
+				return
 			}
 			log.Println("Error reading message from server:", err)
 			continue
