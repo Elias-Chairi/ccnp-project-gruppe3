@@ -103,6 +103,7 @@ func (c *connectionHandler) Register() (*[]entity.Node, error) {
 	}
 
 	go c.startListening()
+
 	return &nodes, nil
 }
 
@@ -131,7 +132,7 @@ func (c *connectionHandler) startListening() {
 		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) {
-				log.Fatalf("Connection to server closed: %v", err)
+				log.Fatalf("Connection to server closed: %v \n", err)
 			}
 			log.Println("Error reading message from server:", err)
 			continue
