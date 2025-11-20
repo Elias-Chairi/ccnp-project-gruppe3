@@ -183,6 +183,7 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 		}
 	}
 }
+// Can cause data loss when converting from int64 to int32, if on a 32-bit system.
 func normalizeActuatorState(current any, requested any) (any, bool) {
 	switch current.(type) {
 	case int:
