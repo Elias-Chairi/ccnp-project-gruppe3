@@ -170,6 +170,24 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 			}
 		default:
 			log.Printf("Received unknown message type: %d\n", tlv.Type())
+			errMsg := messages.AckErrorRequestIDMessage{
+				Code: constants.ERR_INVALID_MESSAGE_TYPE,
+				Data: fmt.Sprintf("unsupported message type %d", tlv.Type()),
+			}
+			errTLV, err := errMsg.Encode()
+			if err != nil {
+				log.Println("Error encoding invalid message type ACK:", err)
+				continue
+			}
+			var writeErr error
+			if reqID != nil {
+				_, writeErr = c.conn.Write(errTLV.EncodeWithRequestID(*reqID))
+			} else {
+				_, writeErr = c.conn.Write(errTLV.Encode())
+			}
+			if writeErr != nil {
+				log.Println("Error sending invalid message type ACK:", writeErr)
+			}
 			continue
 		}
 	}
