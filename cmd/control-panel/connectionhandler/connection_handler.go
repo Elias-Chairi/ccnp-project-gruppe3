@@ -1,7 +1,10 @@
 package connectionhandler
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"time"
 
@@ -127,6 +130,10 @@ func (c *connectionHandler) startListening() {
 	for {
 		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
 		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) {
+				log.Fatalf("Connection to server closed: %v", err)
+			}
+			log.Println("Error reading message from server:", err)
 			continue
 		}
 
