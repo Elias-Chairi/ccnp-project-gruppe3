@@ -235,7 +235,7 @@ func normalizeActuatorState(current any, requested any) (any, bool) {
 			return v, true
 		}
 	default:
-		if reflect.TypeOf(current) == reflect.TypeOf(requested) {
+		if current != nil && requested != nil && reflect.TypeOf(current) == reflect.TypeOf(requested) {
 			return requested, true
 		}
 	}
