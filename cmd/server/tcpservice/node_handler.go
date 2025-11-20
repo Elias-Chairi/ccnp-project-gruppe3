@@ -28,6 +28,8 @@ var handleNode messageHandler = func(t *tcpService, conn *utilNet.SafeConn, tlv 
 			// unknown node, ignore
 			return
 		}
+		// update server's registry with new sensor value
+		t.nodeReg.UpdateSensorState(nodeID, msg.Sensor.ID, msg.Sensor.Value)
 
 		// forward sensor update to all connected control panels
 		t.NotifyAllControlPanels(messages.NewSensorUpdateMessageWithNode(nodeID, msg.Sensor))
@@ -218,6 +220,24 @@ func (r *NodeRegistry) CreateNodeID(conn *utilNet.SafeConn, sensors []entity.Sen
 		Actuators: actuators,
 	}
 	return nodeID
+}
+
+// UpdateSensorState updates the value of a specific sensor for a given node.
+func (r *NodeRegistry) UpdateSensorState(nodeID uint8, sensorID uint8, newValue any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodeInfo, exists := r.nodes[nodeID]
+	if !exists {
+		return
+	}
+
+	for i, sensor := range nodeInfo.Sensors {
+		if sensor.ID == sensorID {
+			nodeInfo.Sensors[i].Value = newValue
+			return
+		}
+	}
 }
 
 // RemoveNodeID deletes the node ID and its associated connection.

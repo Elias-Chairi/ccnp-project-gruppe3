@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"slices"
@@ -22,8 +23,9 @@ type Controller interface {
 
 // TerminalView replaces the Fyne GUI with a simple terminal interface.
 type TerminalView struct {
-	teaProgram *tea.Program
-	Controller Controller
+	teaProgram  *tea.Program
+	Controller  Controller
+	shutdownErr error
 }
 
 // Start launches the terminal-based user interface.
@@ -32,6 +34,9 @@ func (t *TerminalView) Start() {
 	if _, err := t.teaProgram.Run(); err != nil {
 		fmt.Println("Error running TUI:", err)
 		os.Exit(1)
+	}
+	if t.shutdownErr != nil {
+		log.Fatalf("Connection to server closed: %v", t.shutdownErr)
 	}
 }
 
@@ -110,6 +115,13 @@ func (t *TerminalView) NodeRemoved(nodeID uint8) {
 	t.teaProgram.Send(nodeRemovedMsg{nodeID: nodeID})
 }
 
+func (t *TerminalView) ConnectionClosed(err error) {
+	t.shutdownErr = err
+	if t.teaProgram != nil {
+		t.teaProgram.Send(connectionClosedMsg{err: err})
+	}
+}
+
 // --------------------- Bubble Tea Model ---------------------
 
 type viewState int
@@ -162,6 +174,10 @@ type nodeAddedMsg struct {
 
 type nodeRemovedMsg struct {
 	nodeID uint8
+}
+
+type connectionClosedMsg struct {
+	err error
 }
 
 func (m *model) getNodeByID(id uint8) (int, *entity.Node) {
@@ -330,6 +346,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	//main switchmsg
 	switch msg := msg.(type) {
+	case connectionClosedMsg:
+		if msg.err != nil {
+			m.err = msg.err
+		}
+		return m, tea.Quit
 	case nodeAddedMsg: // add new node
 		m.addNode(msg.node)
 
