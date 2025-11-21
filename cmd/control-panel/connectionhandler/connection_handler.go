@@ -1,7 +1,10 @@
 package connectionhandler
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"time"
 
@@ -19,6 +22,7 @@ type UI interface {
 	ActuatorCommandResponse(nodeID uint8, actuatorID uint8, state any, err error)
 	NodeAdded(node entity.Node)
 	NodeRemoved(nodeID uint8)
+	ConnectionClosed(err error)
 }
 
 // connectionHandler manages the connection to the server.
@@ -100,6 +104,7 @@ func (c *connectionHandler) Register() (*[]entity.Node, error) {
 	}
 
 	go c.startListening()
+
 	return &nodes, nil
 }
 
@@ -127,6 +132,13 @@ func (c *connectionHandler) startListening() {
 	for {
 		tlv, reqID, err := encoding.ReadNextMessage(c.conn, time.Second*10)
 		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) {
+				if c.UI != nil {
+					c.UI.ConnectionClosed(err)
+				}
+				return
+			}
+			log.Println("Error reading message from server:", err)
 			continue
 		}
 
@@ -208,7 +220,26 @@ func (c *connectionHandler) startListening() {
 
 			c.pendingReq.Remove(*reqID)
 		default:
-			// unknown message type, ignore
+			// unknown message type, notify server
+			log.Printf("Received unknown message type: %d\n", tlv.Type())
+			errMsg := messages.AckErrorRequestIDMessage{
+				Code: constants.ERR_INVALID_MESSAGE_TYPE,
+				Data: fmt.Sprintf("unsupported message type %d", tlv.Type()),
+			}
+			errTLV, err := errMsg.Encode()
+			if err != nil {
+				log.Println("Error encoding invalid message type ACK:", err)
+				continue
+			}
+			var writeErr error
+			if reqID != nil {
+				_, writeErr = c.conn.Write(errTLV.EncodeWithRequestID(*reqID))
+			} else {
+				_, writeErr = c.conn.Write(errTLV.Encode())
+			}
+			if writeErr != nil {
+				log.Println("Error sending invalid message type ACK:", writeErr)
+			}
 			continue
 		}
 	}

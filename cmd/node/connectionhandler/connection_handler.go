@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/Elias-Chairi/ccnp-project-gruppe3/internal/entity"
@@ -146,10 +147,18 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 						Data: fmt.Sprintf("Actuator ID %d not found", cmdMsg.ActuatorSelector.ActuatorIDs[0]),
 					}
 				} else {
-					msg = messages.AckRequestIDSuccessMessage()
-					// apply state to actuator
-					actuator.State = cmdMsg.ActuatorState
-					log.Printf("Applied new state to actuator ID %d: %+v\n", actuator.ID, actuator.State)
+					newState, ok := normalizeActuatorState(actuator.State, cmdMsg.ActuatorState)
+					if !ok {
+						msg = messages.AckErrorRequestIDMessage{
+							Code: constants.ERR_INVALID_ACTION,
+							Data: fmt.Sprintf("Actuator ID %d expected type %T but received %T", actuator.ID, actuator.State, cmdMsg.ActuatorState),
+						}
+					} else {
+						msg = messages.AckRequestIDSuccessMessage()
+						// apply state to actuator
+						actuator.State = newState
+						log.Printf("Applied new state to actuator ID %d: %+v\n", actuator.ID, actuator.State)
+					}
 				}
 				tlv, err := msg.Encode()
 				if err != nil {
@@ -173,4 +182,63 @@ func (c *ConnectionHandler) StartListeningForCommands() {
 			continue
 		}
 	}
+}
+// Can cause data loss when converting from int64 to int32, if on a 32-bit system.
+func normalizeActuatorState(current any, requested any) (any, bool) {
+	switch current.(type) {
+	case int:
+		switch v := requested.(type) {
+		case int:
+			return v, true
+		case int32:
+			return int(v), true
+		case int64:
+			return int(v), true
+		}
+	case int32:
+		switch v := requested.(type) {
+		case int:
+			return int32(v), true
+		case int32:
+			return v, true
+		case int64:
+			return int32(v), true
+		}
+	case int64:
+		switch v := requested.(type) {
+		case int:
+			return int64(v), true
+		case int32:
+			return int64(v), true
+		case int64:
+			return v, true
+		}
+	case float32:
+		switch v := requested.(type) {
+		case float32:
+			return v, true
+		case float64:
+			return float32(v), true
+		}
+	case float64:
+		switch v := requested.(type) {
+		case float32:
+			return float64(v), true
+		case float64:
+			return v, true
+		}
+	case bool:
+		if v, ok := requested.(bool); ok {
+			return v, true
+		}
+	case string:
+		if v, ok := requested.(string); ok {
+			return v, true
+		}
+	default:
+		if current != nil && requested != nil && reflect.TypeOf(current) == reflect.TypeOf(requested) {
+			return requested, true
+		}
+	}
+	return nil, false
 }
